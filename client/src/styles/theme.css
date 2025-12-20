@@ -1,0 +1,156 @@
+/**
+ * DESIGN TOKENS - Static values not affected by theme changes
+ *
+ * This file contains:
+ * - Spacing, borders, shadows (design system constants)
+ * - Z-indexes, transitions, layout dimensions
+ * - Keyframe animations
+ *
+ * COLOR VARIABLES are set by ThemeContext at runtime from lib/themes.ts
+ * The minimal color fallbacks below are only used during initial load.
+ */
+
+:root {
+  /* Minimal color fallbacks - match themes.ts default (isDefault: true) */
+  /* These are overridden immediately by ThemeContext on app load */
+  --color-text-heading: #1B3139;
+  --color-text-primary: #2D4A54;
+  --color-text-muted: #6B7C84;
+  --color-accent-primary: #1B3139;
+  --color-bg-primary: #F9F7F4;
+  --color-bg-secondary: #EEEDE9;
+  --color-border: #B5B3AD;
+
+  /* Status colors - semantic meaning */
+  --color-success: #46d369;
+  --color-error: #e50914;
+  --color-info: #64b5f6;
+  --color-warning: #f5a623;
+
+  /* Derived colors for Tailwind/shadcn button variants */
+  /* These reference the theme colors above and update automatically */
+  --color-primary: var(--color-accent-primary);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--color-bg-secondary);
+  --color-secondary-foreground: var(--color-text-primary);
+  --color-secondary-border: var(--color-border);
+  --color-destructive: var(--color-error);
+  --color-muted: var(--color-bg-secondary);
+  --color-muted-foreground: var(--color-text-muted);
+  --color-accent: var(--color-bg-secondary);
+  --color-accent-foreground: var(--color-text-primary);
+
+  /* Spacing - Used by components (not overridden) */
+  --spacing-unit: 0.25rem;
+  --spacing-xs: calc(var(--spacing-unit) * 1); /* 4px */
+  --spacing-sm: calc(var(--spacing-unit) * 2); /* 8px */
+  --spacing-md: calc(var(--spacing-unit) * 4); /* 16px */
+  --spacing-lg: calc(var(--spacing-unit) * 6); /* 24px */
+  --spacing-xl: calc(var(--spacing-unit) * 8); /* 32px */
+  --spacing-2xl: calc(var(--spacing-unit) * 12); /* 48px */
+  --spacing-3xl: calc(var(--spacing-unit) * 16); /* 64px */
+
+  /* Borders - Used by components (not overridden) */
+  --border-radius-sm: 4px;
+  --border-radius: 8px;
+  --border-radius-md: 12px;
+  --border-radius-lg: 16px;
+  --border-radius-xl: 24px;
+  --border-radius-full: 9999px;
+  --border-width: 1px;
+
+  /* Shadows - Used by components (not overridden) */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+
+  /* Transitions - Used by components (not overridden) */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 300ms ease;
+  --transition-slowest: 500ms ease;
+
+  /* Z-indexes - Used by components (not overridden) */
+  --z-dropdown: 50;
+  --z-modal: 100;
+  --z-popover: 200;
+  --z-tooltip: 300;
+
+  /* Layout - Used by components (not overridden) */
+  --sidebar-width: 280px;
+  --header-height: 64px;
+  --chat-input-max-height: 200px;
+
+  /* Animations - Used by components (not overridden) */
+  --animation-slide-in: slideIn 0.3s ease-out;
+  --animation-fade-in: fadeIn 0.3s ease-out;
+  --animation-scale-in: scaleIn 0.3s ease-out;
+}
+
+/* Keyframe Animations */
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Utility Classes */
+.transition-base {
+  transition: all var(--transition-base);
+}
+
+.transition-fast {
+  transition: all var(--transition-fast);
+}
+
+.transition-slow {
+  transition: all var(--transition-slow);
+}
+
+/* Focus styles */
+*:focus {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Selection styles */
+::selection {
+  background-color: var(--color-accent);
+  color: white;
+}

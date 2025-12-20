@@ -1,0 +1,20 @@
+{
+  "agents": [],
+  "branding": {
+    "tabTitle": "Personal Finance Dashboard",
+    "appName": "Personal Finance Dashboard",
+    "companyName": "Personal Finance",
+    "description": "Track your assets, liabilities, and net worth",
+    "logoPath": "/logos/u_logo.svg"
+  },
+  "home": {
+    "title": "Personal Finance Dashboard",
+    "description": "Track your assets, liabilities, and net worth at a glance."
+  },
+  "dashboard": {
+    "title": "Financial Overview",
+    "subtitle": "Your personal finance snapshot",
+    "iframeUrl": "",
+    "showPadding": true
+  }
+}
