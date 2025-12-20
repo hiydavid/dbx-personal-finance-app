@@ -7,7 +7,14 @@ import React, {
 } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Chat } from '@/components/layout/Sidebar';
+
+export interface Chat {
+  id: string;
+  title: string;
+  lastMessage: string;
+  timestamp: Date;
+  preview: string;
+}
 
 // Dev-only logger
 const devLog = (...args: unknown[]) => {
@@ -16,7 +23,7 @@ const devLog = (...args: unknown[]) => {
   }
 };
 
-export type TabType = 'home' | 'chat' | 'dashboard' | 'tools' | 'about';
+export type TabType = 'dashboard';
 
 interface NavigationContextType {
   // Active tab (derived from pathname)
@@ -60,15 +67,8 @@ export function useNavigation() {
 }
 
 // Map pathname to tab
-function pathnameToTab(pathname: string): TabType {
-  const path = pathname.replace(/^\//, '');
-  if (path === '' || path === 'home') {
-    return 'home';
-  }
-  if (['chat', 'dashboard', 'tools', 'about'].includes(path)) {
-    return path as TabType;
-  }
-  return 'home';
+function pathnameToTab(_pathname: string): TabType {
+  return 'dashboard';
 }
 
 interface ChatMessage {
@@ -155,13 +155,13 @@ export function NavigationProvider({
 
   // Navigation
   const navigateTo = useCallback(
-    (tab: TabType) => {
-      navigate(`/${tab === 'home' ? '' : tab}`);
+    (_tab: TabType) => {
+      navigate('/dashboard');
     },
     [navigate]
   );
 
-  // Chat handlers
+  // Chat handlers (kept for compatibility)
   const handleNewChat = useCallback(() => {
     if (isStreaming) {
       toast.info('Please wait for the current response to complete', {
@@ -170,9 +170,8 @@ export function NavigationProvider({
       return;
     }
     setCurrentChatId(undefined);
-    navigateTo('chat');
     devLog('Starting new chat session');
-  }, [isStreaming, navigateTo]);
+  }, [isStreaming]);
 
   const handleChatSelect = useCallback(
     (chatId: string) => {
@@ -183,12 +182,11 @@ export function NavigationProvider({
         return;
       }
       setCurrentChatId(chatId);
-      navigateTo('chat');
       if (window.innerWidth < 1024) {
         setIsSidebarOpen(false);
       }
     },
-    [isStreaming, navigateTo]
+    [isStreaming]
   );
 
   const handleChatIdChange = useCallback(

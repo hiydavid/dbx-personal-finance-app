@@ -1,9 +1,7 @@
 import { useState, useEffect, type ReactNode } from "react";
-import { TopBar } from "@/components/layout/TopBar";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { LeftSidebar } from "@/components/layout/LeftSidebar";
+import { ChatPanel } from "@/components/chat/ChatPanel";
 import { EditModePanel } from "@/components/modals/EditModePanel";
-import { SpatialNetworkBackground } from "@/components/background/SpatialNetworkBackground";
-import { useThemeContext } from "@/contexts/ThemeContext";
 import { useNavigation } from "@/contexts/NavigationContext";
 
 interface MainLayoutProps {
@@ -12,23 +10,7 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const [mounted, setMounted] = useState(false);
-  const { colors, animatedBackground } = useThemeContext();
-  const {
-    activeTab,
-    currentChatId,
-    handleChatSelect,
-    handleNewChat,
-    isSidebarCollapsed,
-    setIsSidebarCollapsed,
-    isSidebarOpen,
-    setIsSidebarOpen,
-    selectedAgentId,
-    setSelectedAgentId,
-    chats,
-    setChats,
-    isEditMode,
-    setIsEditMode,
-  } = useNavigation();
+  const { isEditMode, setIsEditMode } = useNavigation();
 
   useEffect(() => {
     setMounted(true);
@@ -37,74 +19,20 @@ export function MainLayout({ children }: MainLayoutProps) {
   if (!mounted) return null;
 
   return (
-    <div className="h-screen bg-[var(--color-background)] flex flex-col overflow-hidden">
-      {/* Top Bar - Fixed position, floats above content */}
-      <TopBar
-        activeTab={activeTab}
-        onEditModeToggle={() => setIsEditMode(!isEditMode)}
-      />
+    <div className="h-screen bg-[var(--color-background)] flex overflow-hidden">
+      {/* Left Sidebar */}
+      <LeftSidebar onEditModeToggle={() => setIsEditMode(!isEditMode)} />
 
-      {/* Spacer for fixed header */}
-      <div className="flex-shrink-0 h-[var(--header-height)]" />
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col h-full ml-[200px] mr-[400px] bg-[var(--color-background)] overflow-hidden">
+        <div className="relative flex-1 flex flex-col min-h-0 overflow-auto">
+          {children}
+        </div>
+      </main>
 
-      {/* Main Layout */}
-      <div className="flex-1 flex relative overflow-hidden">
-        {/* Sidebar - Only show on Chat tab */}
-        {activeTab === "chat" && (
-          <>
-            {/* Desktop Sidebar */}
-            <div className="hidden lg:block flex-shrink-0">
-              <Sidebar
-                currentChatId={currentChatId}
-                onChatSelect={handleChatSelect}
-                onNewChat={handleNewChat}
-                isCollapsed={isSidebarCollapsed}
-                onCollapse={setIsSidebarCollapsed}
-                selectedAgentId={selectedAgentId}
-                onAgentChange={setSelectedAgentId}
-                chats={chats}
-                onChatsChange={setChats}
-              />
-            </div>
-
-            {/* Mobile Sidebar */}
-            <Sidebar
-              currentChatId={currentChatId}
-              onChatSelect={handleChatSelect}
-              onNewChat={handleNewChat}
-              isMobile
-              isOpen={isSidebarOpen}
-              onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-              selectedAgentId={selectedAgentId}
-              onAgentChange={setSelectedAgentId}
-              chats={chats}
-              onChatsChange={setChats}
-            />
-          </>
-        )}
-
-        {/* Main Content Area */}
-        <main className="flex-1 flex flex-col h-full relative bg-[var(--color-background)] overflow-hidden">
-          {/* Background - Only show on home page */}
-          {activeTab === "home" && (
-            <SpatialNetworkBackground
-              particleCount={animatedBackground.particleCount}
-              connectionDistance={animatedBackground.connectionDistance}
-              primaryColor={colors.animatedBgColor}
-              secondaryColor={colors.animatedBgColor}
-              particleOpacity={animatedBackground.particleOpacity}
-              lineOpacity={animatedBackground.lineOpacity}
-              particleSize={animatedBackground.particleSize}
-              lineWidth={animatedBackground.lineWidth}
-              animationSpeed={animatedBackground.animationSpeed}
-            />
-          )}
-
-          {/* Page Content */}
-          <div className="relative flex-1 flex flex-col min-h-0">
-            {children}
-          </div>
-        </main>
+      {/* Right Chat Panel */}
+      <div className="fixed right-0 top-0 h-full z-40">
+        <ChatPanel />
       </div>
 
       {/* Edit Mode Panel */}
