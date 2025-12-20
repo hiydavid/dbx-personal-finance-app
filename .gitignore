@@ -1,3 +1,25 @@
+.env.local
+
+# Node.js / Frontend
+client/node_modules/
+client/out/
+client/dist/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Databricks
+.databrickscfg
+
+# IDE
+.idea/
+.vscode/
+
+# Claude Code
+CLAUDE.md
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
