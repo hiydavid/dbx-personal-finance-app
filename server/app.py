@@ -16,7 +16,7 @@ from . import tracing  # noqa: F401
 
 # Routers for organizing endpoints
 from .db import run_migrations
-from .routers import agent, chat, config, finance, health
+from .routers import agent, chat, config, finance, health, profile
 from .services.chat import init_storage
 
 # Configure logging for Databricks Apps monitoring
@@ -89,6 +89,7 @@ app.include_router(config.router, prefix=API_PREFIX, tags=['configuration'])
 app.include_router(agent.router, prefix=API_PREFIX, tags=['agents'])
 app.include_router(chat.router, prefix=API_PREFIX, tags=['chat'])
 app.include_router(finance.router, prefix=API_PREFIX, tags=['finance'])
+app.include_router(profile.router, prefix=API_PREFIX, tags=['profile'])
 
 # Production: Serve Vite static build
 # Vite builds to 'out' directory (configured in vite.config.ts)

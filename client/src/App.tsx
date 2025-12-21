@@ -7,6 +7,7 @@ import { AppConfigProvider } from '@/contexts/AppConfigContext';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { CashflowPage } from '@/pages/CashflowPage';
+import { ProfilePage } from '@/pages/ProfilePage';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
                   <Route path="/" element={<DashboardPage />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/cashflow" element={<CashflowPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
                 </Routes>
               </MainLayout>
             </NavigationProvider>
