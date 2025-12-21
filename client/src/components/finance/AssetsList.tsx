@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Plus } from 'lucide-react';
 import type { Asset } from '@/lib/finance-types';
 import { formatCurrency } from './formatters';
 
 interface AssetsListProps {
   assets: Asset[];
+  onAddClick?: () => void;
 }
 
 const categoryLabels: Record<string, string> = {
@@ -25,7 +26,7 @@ const categoryColors: Record<string, string> = {
   other: '#84cc16',      // lime
 };
 
-export function AssetsList({ assets }: AssetsListProps) {
+export function AssetsList({ assets, onAddClick }: AssetsListProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   const { grouped, categoryTotals, total } = useMemo(() => {
@@ -65,10 +66,21 @@ export function AssetsList({ assets }: AssetsListProps) {
     <div className="bg-card rounded-lg border shadow-sm">
       {/* Header with total */}
       <div className="p-4 pb-3">
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-xl font-semibold">Assets</h2>
-          <span className="text-xl font-semibold text-[var(--color-muted-foreground)]">·</span>
-          <span className="text-xl font-semibold text-green-600">{formatCurrency(total)}</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-xl font-semibold">Assets</h2>
+            <span className="text-xl font-semibold text-[var(--color-muted-foreground)]">·</span>
+            <span className="text-xl font-semibold text-green-600">{formatCurrency(total)}</span>
+          </div>
+          {onAddClick && (
+            <button
+              onClick={onAddClick}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Add
+            </button>
+          )}
         </div>
 
         {/* Horizontal stacked bar */}

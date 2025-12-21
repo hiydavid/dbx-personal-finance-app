@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Edit, FlaskConical, ExternalLink, ArrowRightLeft, User } from "lucide-react";
+import { LayoutDashboard, Edit, FlaskConical, ExternalLink, ArrowRightLeft, Wallet, User } from "lucide-react";
 import { getAppConfig, type AppBranding } from "@/lib/config";
 import { useUserInfo } from "@/hooks/useUserInfo";
 import { useAgents } from "@/hooks/useAgents";
@@ -49,6 +49,7 @@ export function LeftSidebar({ onEditModeToggle }: LeftSidebarProps) {
   const displayName = userInfo?.user?.split("@")[0] || "";
   const isDashboardActive = location.pathname === "/" || location.pathname === "/dashboard";
   const isCashflowActive = location.pathname === "/cashflow";
+  const isNetWorthActive = location.pathname === "/networth";
   const isProfileActive = location.pathname === "/profile";
 
   return (
@@ -100,6 +101,20 @@ export function LeftSidebar({ onEditModeToggle }: LeftSidebarProps) {
         >
           <ArrowRightLeft className="h-4 w-4" />
           <span>Cashflow</span>
+        </Link>
+        <Link
+          to="/networth"
+          className={`
+            flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
+            ${
+              isNetWorthActive
+                ? "bg-[var(--color-accent-primary)]/10 text-[var(--color-accent-primary)]"
+                : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]/50 hover:text-[var(--color-foreground)]"
+            }
+          `}
+        >
+          <Wallet className="h-4 w-4" />
+          <span>Net Worth</span>
         </Link>
         <Link
           to="/profile"

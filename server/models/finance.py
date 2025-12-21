@@ -89,3 +89,31 @@ class TransactionsApiResponse(BaseModel):
     success: bool
     data: Optional[TransactionsData] = None
     error: Optional[str] = None
+
+
+# Asset/Liability create request models
+class AssetCreate(BaseModel):
+    name: str
+    category: Literal['cash', 'investment', 'property']
+    value: float
+    description: Optional[str] = None
+
+
+class LiabilityCreate(BaseModel):
+    name: str
+    category: Literal['loan', 'credit_card', 'mortgage', 'other']
+    amount: float
+    description: Optional[str] = None
+
+
+# Asset/Liability API response models
+class AssetApiResponse(BaseModel):
+    success: bool
+    data: Optional[Asset] = None
+    error: Optional[str] = None
+
+
+class LiabilityApiResponse(BaseModel):
+    success: bool
+    data: Optional[Liability] = None
+    error: Optional[str] = None

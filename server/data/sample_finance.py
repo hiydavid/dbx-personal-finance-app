@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timezone
 
 from server.models.finance import Asset, FinancialSummary, Liability
@@ -84,3 +85,31 @@ def get_financial_summary() -> FinancialSummary:
         liabilities=SAMPLE_LIABILITIES,
         lastUpdated=datetime.now(timezone.utc),
     )
+
+
+def add_asset(name: str, category: str, value: float, description: str | None = None) -> Asset:
+    """Add a new asset to the in-memory store."""
+    asset = Asset(
+        id=f'asset-{uuid.uuid4().hex[:8]}',
+        name=name,
+        category=category,
+        value=value,
+        description=description,
+    )
+    SAMPLE_ASSETS.append(asset)
+    return asset
+
+
+def add_liability(
+    name: str, category: str, amount: float, description: str | None = None
+) -> Liability:
+    """Add a new liability to the in-memory store."""
+    liability = Liability(
+        id=f'liability-{uuid.uuid4().hex[:8]}',
+        name=name,
+        category=category,
+        amount=amount,
+        description=description,
+    )
+    SAMPLE_LIABILITIES.append(liability)
+    return liability
