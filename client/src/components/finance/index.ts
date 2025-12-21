@@ -6,3 +6,7 @@ export { LiabilitiesList } from "./LiabilitiesList";
 export { ChartTabs } from "./ChartTabs";
 export { CashflowSankey } from "./CashflowSankey";
 export { formatCurrency } from "./formatters";
+export { CashflowView } from "./CashflowView";
+export { DailyCashflowChart } from "./DailyCashflowChart";
+export { TransactionTable } from "./TransactionTable";
+export { TransactionFilters } from "./TransactionFilters";

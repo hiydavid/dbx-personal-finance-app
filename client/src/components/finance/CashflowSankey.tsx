@@ -1,79 +1,143 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Sankey, Tooltip, Rectangle, Layer, ResponsiveContainer } from 'recharts';
 import { formatCurrency } from './formatters';
+import type { Transaction, TransactionCategory } from '@/lib/finance-types';
 
 type TimePeriod = '30D' | '60D' | '90D';
 
-// Mock cashflow data
-const mockData = {
-  nodes: [
-    // Income sources (left)
-    { name: 'Salary' },
-    { name: 'Freelance' },
-    { name: 'Uncategorized Income' },
-    // Center node
-    { name: 'Cash Flow' },
-    // Expense categories (right)
-    { name: 'Housing' },
-    { name: 'Food & Dining' },
-    { name: 'Transportation' },
-    { name: 'Entertainment' },
-    { name: 'Healthcare' },
-    { name: 'Shopping' },
-    { name: 'Travel' },
-    { name: 'Personal Care' },
-    { name: 'Miscellaneous' },
-    { name: 'Loan Interest' },
-    { name: 'Uncategorized' },
-    { name: 'Surplus' },
-  ],
-  links: [
-    // Income -> Cash Flow
-    { source: 0, target: 3, value: 17248 },
-    { source: 1, target: 3, value: 1419 },
-    { source: 2, target: 3, value: 10834 },
-    // Cash Flow -> Expenses
-    { source: 3, target: 4, value: 9559 },
-    { source: 3, target: 5, value: 761 },
-    { source: 3, target: 6, value: 555 },
-    { source: 3, target: 7, value: 445 },
-    { source: 3, target: 8, value: 16 },
-    { source: 3, target: 9, value: 628 },
-    { source: 3, target: 10, value: 204 },
-    { source: 3, target: 11, value: 42 },
-    { source: 3, target: 12, value: 922 },
-    { source: 3, target: 13, value: 100 },
-    { source: 3, target: 14, value: 10034 },
-    { source: 3, target: 15, value: 6810 },
-  ],
+// Map transaction categories to display labels
+const categoryLabels: Record<TransactionCategory, string> = {
+  salary: 'Salary',
+  freelance: 'Freelance',
+  uncategorized_income: 'Other Income',
+  housing: 'Housing',
+  food: 'Food',
+  transport: 'Transport',
+  shopping: 'Shopping',
+  entertainment: 'Entertainment',
+  utilities: 'Utilities',
+  healthcare: 'Healthcare',
+  other: 'Other',
 };
+
+// Build Sankey data from transactions
+function buildSankeyData(transactions: Transaction[]) {
+  // Aggregate by category
+  const categoryTotals: Record<string, number> = {};
+
+  for (const tx of transactions) {
+    const label = categoryLabels[tx.category];
+    categoryTotals[label] = (categoryTotals[label] || 0) + tx.amount;
+  }
+
+  // Separate income and expense categories
+  const incomeCategories = ['Salary', 'Freelance', 'Other Income'];
+  const expenseCategories = ['Housing', 'Food', 'Transport', 'Shopping', 'Entertainment', 'Utilities', 'Healthcare', 'Other'];
+
+  // Build nodes - only include categories that have values
+  const nodes: { name: string }[] = [];
+  const nodeIndex: Record<string, number> = {};
+
+  // Add income nodes
+  for (const cat of incomeCategories) {
+    if (categoryTotals[cat] > 0) {
+      nodeIndex[cat] = nodes.length;
+      nodes.push({ name: cat });
+    }
+  }
+
+  // Add center node
+  const centerIndex = nodes.length;
+  nodeIndex['Cash Flow'] = centerIndex;
+  nodes.push({ name: 'Cash Flow' });
+
+  // Add expense nodes
+  for (const cat of expenseCategories) {
+    if (categoryTotals[cat] > 0) {
+      nodeIndex[cat] = nodes.length;
+      nodes.push({ name: cat });
+    }
+  }
+
+  // Calculate totals
+  const totalIncome = incomeCategories.reduce((sum, cat) => sum + (categoryTotals[cat] || 0), 0);
+  const totalExpenses = expenseCategories.reduce((sum, cat) => sum + (categoryTotals[cat] || 0), 0);
+  const surplus = totalIncome - totalExpenses;
+
+  // Add surplus node if positive
+  if (surplus > 0) {
+    nodeIndex['Surplus'] = nodes.length;
+    nodes.push({ name: 'Surplus' });
+  }
+
+  // Build links
+  const links: { source: number; target: number; value: number }[] = [];
+
+  // Income -> Cash Flow
+  for (const cat of incomeCategories) {
+    if (categoryTotals[cat] > 0) {
+      links.push({
+        source: nodeIndex[cat],
+        target: centerIndex,
+        value: Math.round(categoryTotals[cat]),
+      });
+    }
+  }
+
+  // Cash Flow -> Expenses
+  for (const cat of expenseCategories) {
+    if (categoryTotals[cat] > 0) {
+      links.push({
+        source: centerIndex,
+        target: nodeIndex[cat],
+        value: Math.round(categoryTotals[cat]),
+      });
+    }
+  }
+
+  // Cash Flow -> Surplus
+  if (surplus > 0) {
+    links.push({
+      source: centerIndex,
+      target: nodeIndex['Surplus'],
+      value: Math.round(surplus),
+    });
+  }
+
+  return { nodes, links, nodeIndex, totalIncome, totalExpenses, surplus };
+}
 
 // Node colors
 const nodeColors: Record<string, string> = {
   'Salary': '#22c55e',
   'Freelance': '#22c55e',
-  'Uncategorized Income': '#86efac',
+  'Other Income': '#86efac',
   'Cash Flow': '#3b82f6',
   'Housing': '#ef4444',
-  'Food & Dining': '#f97316',
-  'Transportation': '#eab308',
+  'Food': '#f97316',
+  'Transport': '#eab308',
   'Entertainment': '#a855f7',
   'Healthcare': '#ec4899',
   'Shopping': '#06b6d4',
-  'Travel': '#8b5cf6',
-  'Personal Care': '#f472b6',
-  'Miscellaneous': '#64748b',
-  'Loan Interest': '#dc2626',
-  'Uncategorized': '#94a3b8',
+  'Utilities': '#3b82f6',
+  'Other': '#94a3b8',
   'Surplus': '#22c55e',
 };
 
-// Custom node component as a function that returns JSX
+// Income category names for detection
+const incomeNodes = ['Salary', 'Freelance', 'Other Income'];
+
+// Custom node component - text inline: "Category $X,XXX"
 function SankeyNode(props: any) {
   const { x, y, width, height, payload } = props;
   const color = nodeColors[payload.name] || '#94a3b8';
-  const isLeftSide = ['Salary', 'Freelance', 'Uncategorized Income'].includes(payload.name);
+  const isLeftSide = incomeNodes.includes(payload.name);
   const isCenterNode = payload.name === 'Cash Flow';
+
+  // Format label: "Category $X,XXX" on one line
+  const label = isCenterNode
+    ? payload.name
+    : `${payload.name} ${formatCurrency(payload.value)}`;
 
   return (
     <Layer key={`node-${payload.name}`}>
@@ -93,67 +157,98 @@ function SankeyNode(props: any) {
         fontSize={11}
         fill="#374151"
       >
-        {payload.name}
-      </text>
-      <text
-        x={isLeftSide ? x - 8 : (isCenterNode ? x + width / 2 : x + width + 8)}
-        y={y + height / 2 + 14}
-        textAnchor={isLeftSide ? 'end' : (isCenterNode ? 'middle' : 'start')}
-        dominantBaseline="middle"
-        fontSize={10}
-        fill="#6b7280"
-      >
-        {formatCurrency(payload.value)}
+        {label}
       </text>
     </Layer>
   );
 }
 
-// Custom link component
-function SankeyLink(props: any) {
-  const { sourceX, targetX, sourceY, targetY, sourceControlX, targetControlX, linkWidth, index, payload } = props;
+// Custom link component - needs sankeyData for node name lookups
+function createSankeyLink(sankeyData: { nodes: { name: string }[] }) {
+  return function SankeyLink(props: any) {
+    const { sourceX, targetX, sourceY, targetY, sourceControlX, targetControlX, linkWidth, index, payload } = props;
 
-  const isIncome = payload.source < 3;
-  const isSurplus = payload.target === 15;
+    const sourceName = sankeyData.nodes[payload.source]?.name;
+    const targetName = sankeyData.nodes[payload.target]?.name;
+    const isIncome = incomeNodes.includes(sourceName);
+    const isSurplus = targetName === 'Surplus';
 
-  const gradientId = `gradient-${index}`;
-  const startColor = isIncome ? '#22c55e' : '#3b82f6';
-  const endColor = isSurplus ? '#22c55e' : (isIncome ? '#3b82f6' : '#94a3b8');
+    const gradientId = `gradient-${index}`;
+    const startColor = isIncome ? '#22c55e' : '#3b82f6';
+    const endColor = isSurplus ? '#22c55e' : (isIncome ? '#3b82f6' : '#94a3b8');
 
-  return (
-    <Layer key={`link-${index}`}>
-      <defs>
-        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor={startColor} stopOpacity={0.5} />
-          <stop offset="100%" stopColor={endColor} stopOpacity={0.3} />
-        </linearGradient>
-      </defs>
-      <path
-        d={`
-          M${sourceX},${sourceY}
-          C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}
-        `}
-        fill="none"
-        stroke={`url(#${gradientId})`}
-        strokeWidth={linkWidth}
-        strokeOpacity={0.7}
-      />
-    </Layer>
-  );
+    return (
+      <Layer key={`link-${index}`}>
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={startColor} stopOpacity={0.5} />
+            <stop offset="100%" stopColor={endColor} stopOpacity={0.3} />
+          </linearGradient>
+        </defs>
+        <path
+          d={`
+            M${sourceX},${sourceY}
+            C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}
+          `}
+          fill="none"
+          stroke={`url(#${gradientId})`}
+          strokeWidth={linkWidth}
+          strokeOpacity={0.7}
+        />
+      </Layer>
+    );
+  };
 }
 
 export function CashflowSankey() {
   const [period, setPeriod] = useState<TimePeriod>('30D');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const totalIncome = mockData.links
-    .filter(l => l.source < 3)
-    .reduce((sum, l) => sum + l.value, 0);
+  // Convert period to days
+  const periodDays = period === '30D' ? 30 : period === '60D' ? 60 : 90;
 
-  const totalExpenses = mockData.links
-    .filter(l => l.source === 3 && l.target !== 15)
-    .reduce((sum, l) => sum + l.value, 0);
+  // Fetch transactions from API
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/finance/transactions?days=${periodDays}`);
+        const result = await response.json();
+        if (result.success) {
+          setTransactions(result.data.transactions);
+        }
+      } catch (err) {
+        console.error('Failed to fetch transactions:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [periodDays]);
 
-  const surplus = mockData.links.find(l => l.target === 15)?.value || 0;
+  // Build Sankey data from transactions
+  const sankeyData = useMemo(() => {
+    // Filter transactions to the selected period
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - periodDays);
+    const filtered = transactions.filter(tx => new Date(tx.date) >= cutoffDate);
+    return buildSankeyData(filtered);
+  }, [transactions, periodDays]);
+
+  // Create link component with current data
+  const SankeyLinkComponent = useMemo(
+    () => createSankeyLink(sankeyData),
+    [sankeyData]
+  );
+
+  if (loading) {
+    return (
+      <div className="h-[280px] flex items-center justify-center">
+        <div className="text-[var(--color-muted-foreground)]">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -162,10 +257,14 @@ export function CashflowSankey() {
         <div className="flex items-center gap-4">
           <h3 className="text-lg font-semibold">Cashflow</h3>
           <div className="flex items-center gap-2 text-sm text-[var(--color-muted-foreground)]">
-            <span className="text-green-600 font-medium">{formatCurrency(totalIncome)}</span>
+            <span className="text-green-600 font-medium">
+              {formatCurrency(sankeyData.totalIncome)}
+            </span>
             <span>in</span>
             <span className="mx-1">/</span>
-            <span className="text-red-500 font-medium">{formatCurrency(totalExpenses)}</span>
+            <span className="text-red-500 font-medium">
+              {formatCurrency(sankeyData.totalExpenses)}
+            </span>
             <span>out</span>
           </div>
         </div>
@@ -184,12 +283,12 @@ export function CashflowSankey() {
       <div className="h-[280px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <Sankey
-            data={mockData}
+            data={sankeyData}
             node={SankeyNode}
-            link={SankeyLink}
-            nodePadding={16}
+            link={SankeyLinkComponent}
+            nodePadding={24}
             nodeWidth={10}
-            margin={{ top: 10, right: 100, bottom: 10, left: 100 }}
+            margin={{ top: 10, right: 120, bottom: 10, left: 120 }}
             iterations={32}
           >
             <Tooltip
@@ -199,8 +298,8 @@ export function CashflowSankey() {
                 if (!data) return null;
 
                 if (data.source !== undefined && data.target !== undefined) {
-                  const sourceName = mockData.nodes[data.source]?.name;
-                  const targetName = mockData.nodes[data.target]?.name;
+                  const sourceName = sankeyData.nodes[data.source]?.name;
+                  const targetName = sankeyData.nodes[data.target]?.name;
                   return (
                     <div className="bg-white border border-gray-200 shadow-lg rounded-lg px-3 py-2">
                       <div className="text-sm font-medium">{sourceName} → {targetName}</div>
@@ -224,8 +323,8 @@ export function CashflowSankey() {
       <div className="mt-4 pt-4 border-t border-[var(--color-border)] flex justify-center gap-8 text-sm">
         <div className="text-center">
           <div className="text-[var(--color-muted-foreground)]">Net Cashflow</div>
-          <div className={`font-semibold ${surplus >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-            {surplus >= 0 ? '+' : ''}{formatCurrency(surplus)}
+          <div className={`font-semibold ${sankeyData.surplus >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+            {sankeyData.surplus >= 0 ? '+' : ''}{formatCurrency(sankeyData.surplus)}
           </div>
         </div>
       </div>
