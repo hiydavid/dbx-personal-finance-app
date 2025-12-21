@@ -86,6 +86,9 @@ npm run dev
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/finance/summary` | GET | Returns financial summary with assets, liabilities, and net worth |
+| `/api/finance/assets` | POST | Add a new asset (in-memory) |
+| `/api/finance/liabilities` | POST | Add a new liability (in-memory) |
+| `/api/finance/transactions` | GET | Returns transaction data with daily cashflow |
 | `/api/health` | GET | Health check |
 
 ### Example Response

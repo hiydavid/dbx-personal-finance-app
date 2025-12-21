@@ -10,3 +10,4 @@ export { CashflowView } from "./CashflowView";
 export { DailyCashflowChart } from "./DailyCashflowChart";
 export { TransactionTable } from "./TransactionTable";
 export { TransactionFilters } from "./TransactionFilters";
+export { NetWorthView } from "./NetWorthView";
