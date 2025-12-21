@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Edit, FlaskConical, ExternalLink, ArrowRightLeft } from "lucide-react";
+import { LayoutDashboard, Edit, FlaskConical, ExternalLink, ArrowRightLeft, User } from "lucide-react";
 import { getAppConfig, type AppBranding } from "@/lib/config";
 import { useUserInfo } from "@/hooks/useUserInfo";
 import { useAgents } from "@/hooks/useAgents";
@@ -49,6 +49,7 @@ export function LeftSidebar({ onEditModeToggle }: LeftSidebarProps) {
   const displayName = userInfo?.user?.split("@")[0] || "";
   const isDashboardActive = location.pathname === "/" || location.pathname === "/dashboard";
   const isCashflowActive = location.pathname === "/cashflow";
+  const isProfileActive = location.pathname === "/profile";
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-[200px] bg-[var(--color-bg-secondary)] border-r border-[var(--color-border)] flex flex-col z-20">
@@ -99,6 +100,20 @@ export function LeftSidebar({ onEditModeToggle }: LeftSidebarProps) {
         >
           <ArrowRightLeft className="h-4 w-4" />
           <span>Cashflow</span>
+        </Link>
+        <Link
+          to="/profile"
+          className={`
+            flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
+            ${
+              isProfileActive
+                ? "bg-[var(--color-accent-primary)]/10 text-[var(--color-accent-primary)]"
+                : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]/50 hover:text-[var(--color-foreground)]"
+            }
+          `}
+        >
+          <User className="h-4 w-4" />
+          <span>Profile</span>
         </Link>
       </nav>
 

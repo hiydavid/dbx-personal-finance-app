@@ -13,12 +13,26 @@ from .database import (
   session_scope,
   test_database_connection,
 )
-from .models import Base, ChatModel, MessageModel
+from .models import (
+  Base,
+  ChatModel,
+  EmploymentStatus,
+  MaritalStatus,
+  MessageModel,
+  RiskTolerance,
+  TaxFilingStatus,
+  UserProfileModel,
+)
 
 __all__ = [
   'Base',
   'ChatModel',
+  'EmploymentStatus',
+  'MaritalStatus',
   'MessageModel',
+  'RiskTolerance',
+  'TaxFilingStatus',
+  'UserProfileModel',
   'create_tables',
   'get_database_url',
   'get_engine',
