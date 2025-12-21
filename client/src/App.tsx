@@ -6,6 +6,7 @@ import { NavigationProvider } from '@/contexts/NavigationContext';
 import { AppConfigProvider } from '@/contexts/AppConfigContext';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { DashboardPage } from '@/pages/DashboardPage';
+import { CashflowPage } from '@/pages/CashflowPage';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
                 <Routes>
                   <Route path="/" element={<DashboardPage />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/cashflow" element={<CashflowPage />} />
                 </Routes>
               </MainLayout>
             </NavigationProvider>
