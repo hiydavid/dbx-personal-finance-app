@@ -21,7 +21,7 @@ dependencies = [
   "httpx>=0.28.0",
   "pydantic>=2.10.0",
   "requests>=2.32.0",
-  "databricks-sdk>=0.44.1",
+  "databricks-sdk>=0.56.0",  # Required for Lakebase OAuth token generation
   # Conflict resolution pins for Databricks Apps pre-installed packages
   "tenacity==9.0.0",
   "pillow==11.1.0",
