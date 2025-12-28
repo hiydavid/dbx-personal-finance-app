@@ -2,13 +2,19 @@
 
 This module handles PostgreSQL database connections using async SQLAlchemy.
 Uses asyncpg driver for non-blocking database operations.
+
+Supports multiple connection modes:
+1. LAKEBASE_PG_URL: Direct connection URL (legacy/explicit)
+2. PG* env vars: Databricks Apps provides PGHOST, PGUSER, etc.
+3. LAKEBASE_INSTANCE_NAME: Local dev with OAuth token generation
 """
 
+import logging
 import os
 import ssl
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional
-from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qs, quote_plus, urlencode, urlparse, urlunparse
 
 from sqlalchemy.ext.asyncio import (
   AsyncEngine,
@@ -19,24 +25,129 @@ from sqlalchemy.ext.asyncio import (
 
 from .models import Base
 
+logger = logging.getLogger(__name__)
+
 # Global engine and session factory
 _engine: Optional[AsyncEngine] = None
 _async_session_maker: Optional[async_sessionmaker[AsyncSession]] = None
 
 
+def _get_pg_env_vars() -> Optional[dict]:
+  """Get PostgreSQL connection parameters from PG* environment variables.
+
+  These are automatically set by Databricks Apps when a database resource is added.
+
+  Returns:
+      Dict with host, port, database, user, sslmode or None if not configured
+  """
+  pghost = os.environ.get('PGHOST')
+  if not pghost:
+    return None
+
+  return {
+    'host': pghost,
+    'port': os.environ.get('PGPORT', '5432'),
+    'database': os.environ.get('PGDATABASE', 'databricks_postgres'),
+    'user': os.environ.get('PGUSER'),
+    'sslmode': os.environ.get('PGSSLMODE', 'require'),
+  }
+
+
+def _build_url_from_pg_vars(pg_vars: dict, password: Optional[str] = None) -> str:
+  """Build PostgreSQL connection URL from individual components.
+
+  Args:
+      pg_vars: Dict with host, port, database, user, sslmode
+      password: Optional password/token to include
+
+  Returns:
+      PostgreSQL connection URL string
+  """
+  user = pg_vars.get('user', '')
+  host = pg_vars['host']
+  port = pg_vars.get('port', '5432')
+  database = pg_vars.get('database', 'databricks_postgres')
+  sslmode = pg_vars.get('sslmode', 'require')
+
+  # Build URL with optional password
+  if password:
+    auth = f'{quote_plus(user)}:{quote_plus(password)}'
+  elif user:
+    auth = quote_plus(user)
+  else:
+    auth = ''
+
+  url = f'postgresql://{auth}@{host}:{port}/{database}'
+  if sslmode:
+    url += f'?sslmode={sslmode}'
+
+  return url
+
+
 def get_database_url() -> Optional[str]:
   """Get database URL from environment.
 
-  Converts standard PostgreSQL URL to async format if needed.
+  Tries multiple sources in order:
+  1. LAKEBASE_PG_URL: Direct URL (may include password)
+  2. PG* env vars: Databricks Apps environment (requires OAuth token)
+  3. LAKEBASE_INSTANCE_NAME: Local dev (requires OAuth token generation)
 
   Returns:
       Database URL string or None if not configured
   """
+  # Option 1: Direct URL (legacy/explicit configuration)
   url = os.environ.get('LAKEBASE_PG_URL')
-  if url and url.startswith('postgresql://'):
-    # Convert to async driver format
-    url = url.replace('postgresql://', 'postgresql+asyncpg://', 1)
-  return url
+  if url:
+    if url.startswith('postgresql://'):
+      url = url.replace('postgresql://', 'postgresql+asyncpg://', 1)
+    return url
+
+  # Option 2: PG* env vars (Databricks Apps deployment)
+  pg_vars = _get_pg_env_vars()
+  if pg_vars:
+    # Need to generate OAuth token for password
+    from .lakebase_auth import get_lakebase_token, is_lakebase_oauth_configured
+
+    if is_lakebase_oauth_configured():
+      try:
+        token = get_lakebase_token()
+        url = _build_url_from_pg_vars(pg_vars, password=token)
+        logger.info('Built database URL from PG* env vars with OAuth token')
+        return url
+      except Exception as e:
+        logger.warning(f'Failed to get OAuth token, trying without auth: {e}')
+
+    # Fall back to URL without password (may work in some configurations)
+    url = _build_url_from_pg_vars(pg_vars)
+    logger.info('Built database URL from PG* env vars (no password)')
+    return url
+
+  # Option 3: Instance name for local development
+  instance_name = os.environ.get('LAKEBASE_INSTANCE_NAME')
+  if instance_name:
+    from .lakebase_auth import get_lakebase_token
+
+    try:
+      # Use Databricks SDK to get instance details and token
+      from databricks.sdk import WorkspaceClient
+
+      w = WorkspaceClient()
+      instance = w.database.get_database_instance(name=instance_name)
+
+      token = get_lakebase_token(instance_name)
+      database = os.environ.get('LAKEBASE_DATABASE_NAME', 'databricks_postgres')
+      user = os.environ.get('PGUSER', '')
+
+      # Use the read-write DNS from instance
+      host = instance.read_write_dns
+      url = f'postgresql://{quote_plus(user)}:{quote_plus(token)}@{host}:5432/{database}?sslmode=require'
+      logger.info(f'Built database URL from Lakebase instance: {instance_name}')
+      return url
+    except Exception as e:
+      logger.error(f'Failed to build URL from Lakebase instance: {e}')
+      return None
+
+  return None
 
 
 def _prepare_async_url(url: str) -> tuple[str, dict]:
@@ -198,12 +309,24 @@ async def create_tables():
 
 
 def is_postgres_configured() -> bool:
-  """Check if PostgreSQL is configured.
+  """Check if PostgreSQL is configured via any supported method.
 
   Returns:
-      True if LAKEBASE_PG_URL is set, False otherwise
+      True if database connection can be established, False otherwise
   """
-  return bool(os.environ.get('LAKEBASE_PG_URL'))
+  # Check explicit URL
+  if os.environ.get('LAKEBASE_PG_URL'):
+    return True
+
+  # Check Databricks Apps PG* env vars
+  if os.environ.get('PGHOST'):
+    return True
+
+  # Check instance name for local development
+  if os.environ.get('LAKEBASE_INSTANCE_NAME'):
+    return True
+
+  return False
 
 
 def get_lakebase_project_id() -> Optional[str]:

@@ -1,6 +1,19 @@
+# Databricks Apps configuration
+# See: https://docs.databricks.com/aws/en/dev-tools/databricks-apps/app-runtime
+#
+# Database Resource Setup:
+# 1. In Databricks Apps UI, click "Add resource" when configuring the app
+# 2. Select "Database" as the resource type
+# 3. Choose your Lakebase instance and database
+# 4. The PG* environment variables will be set automatically
+
 command: [
   "uvicorn", "server.app:app", "--host", "0.0.0.0"
 ]
 env:
   - name: ENV
     value: production
+  # Lakebase instance name - set this to your instance name for OAuth token generation
+  # The database resource provides PGHOST, PGUSER, PGDATABASE, PGPORT, PGSSLMODE
+  # - name: LAKEBASE_INSTANCE_NAME
+  #   valueFrom: database
