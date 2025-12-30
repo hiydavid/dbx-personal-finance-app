@@ -25,6 +25,11 @@ const devLog = (...args: unknown[]) => {
 
 export type TabType = 'dashboard';
 
+// Chat panel constants
+export const CHAT_PANEL_MIN_WIDTH = 300;
+export const CHAT_PANEL_MAX_WIDTH = 600;
+export const CHAT_PANEL_DEFAULT_WIDTH = 400;
+
 interface NavigationContextType {
   // Active tab (derived from pathname)
   activeTab: TabType;
@@ -41,6 +46,13 @@ interface NavigationContextType {
   setIsSidebarOpen: (open: boolean) => void;
   isSidebarCollapsed: boolean;
   setIsSidebarCollapsed: (collapsed: boolean) => void;
+  // Chat panel state
+  chatPanelWidth: number;
+  setChatPanelWidth: (width: number) => void;
+  isChatPanelCollapsed: boolean;
+  setChatPanelCollapsed: (collapsed: boolean) => void;
+  isResizingChatPanel: boolean;
+  setIsResizingChatPanel: (resizing: boolean) => void;
   // Agent state
   selectedAgentId: string;
   setSelectedAgentId: (id: string) => void;
@@ -104,6 +116,11 @@ export function NavigationProvider({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
+  // Chat panel state
+  const [chatPanelWidth, setChatPanelWidthState] = useState(CHAT_PANEL_DEFAULT_WIDTH);
+  const [isChatPanelCollapsed, setIsChatPanelCollapsedState] = useState(false);
+  const [isResizingChatPanel, setIsResizingChatPanel] = useState(false);
+
   // Agent state
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
 
@@ -115,6 +132,21 @@ export function NavigationProvider({
     const savedCollapsed = localStorage.getItem('sidebarCollapsed');
     if (savedCollapsed !== null) {
       setIsSidebarCollapsed(savedCollapsed === 'true');
+    }
+  }, []);
+
+  // Load chat panel state from localStorage
+  useEffect(() => {
+    const savedWidth = localStorage.getItem('chatPanelWidth');
+    if (savedWidth !== null) {
+      const width = parseInt(savedWidth, 10);
+      if (width >= CHAT_PANEL_MIN_WIDTH && width <= CHAT_PANEL_MAX_WIDTH) {
+        setChatPanelWidthState(width);
+      }
+    }
+    const savedCollapsed = localStorage.getItem('chatPanelCollapsed');
+    if (savedCollapsed !== null) {
+      setIsChatPanelCollapsedState(savedCollapsed === 'true');
     }
   }, []);
 
@@ -206,6 +238,19 @@ export function NavigationProvider({
     localStorage.setItem('sidebarCollapsed', collapsed.toString());
   }, []);
 
+  // Chat panel width handler with localStorage
+  const setChatPanelWidth = useCallback((width: number) => {
+    const clampedWidth = Math.min(Math.max(width, CHAT_PANEL_MIN_WIDTH), CHAT_PANEL_MAX_WIDTH);
+    setChatPanelWidthState(clampedWidth);
+    localStorage.setItem('chatPanelWidth', clampedWidth.toString());
+  }, []);
+
+  // Chat panel collapse handler with localStorage
+  const setChatPanelCollapsed = useCallback((collapsed: boolean) => {
+    setIsChatPanelCollapsedState(collapsed);
+    localStorage.setItem('chatPanelCollapsed', collapsed.toString());
+  }, []);
+
   return (
     <NavigationContext.Provider
       value={{
@@ -220,6 +265,12 @@ export function NavigationProvider({
         setIsSidebarOpen,
         isSidebarCollapsed,
         setIsSidebarCollapsed: handleSetSidebarCollapsed,
+        chatPanelWidth,
+        setChatPanelWidth,
+        isChatPanelCollapsed,
+        setChatPanelCollapsed,
+        isResizingChatPanel,
+        setIsResizingChatPanel,
         selectedAgentId,
         setSelectedAgentId,
         isStreaming,
