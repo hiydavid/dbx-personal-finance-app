@@ -1,5 +1,13 @@
 {
-  "agents": [],
+  "agents": [
+    {
+      "id": "finance-assistant",
+      "endpoint_name": "databricks-claude-sonnet-4",
+      "display_name": "Finance Assistant",
+      "display_description": "Personal finance advisor with access to your financial data",
+      "deployment_type": "fmapi"
+    }
+  ],
   "branding": {
     "tabTitle": "Personal Finance Dashboard",
     "appName": "Personal Finance Dashboard",
