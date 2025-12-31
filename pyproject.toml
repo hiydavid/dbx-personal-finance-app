@@ -8,7 +8,7 @@ include = ["server*"]
 exclude = ["client*", "tests*", "scripts*", "docs*"]
 
 [project]
-name = "databricks-phoenix-app-template"
+name = "dbx-personal-finance-app"
 version = "0.1.0"
 description = "Databricks GenAI App Template (Phoenix)"
 readme = "README.md"
