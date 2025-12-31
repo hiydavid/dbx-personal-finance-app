@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from ..chat_storage import MessageModel, storage
 from ..config_loader import config_loader
-from ..services.agents.handlers import DatabricksEndpointHandler
+from ..services.agents.handlers import DatabricksEndpointHandler, FMAPIHandler
 from ..services.user import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -131,7 +131,12 @@ async def invoke_endpoint(request: Request, options: InvokeEndpointRequest):
       return {'error': f'Chat not found: {chat_id}'}
 
   try:
-    handler = DatabricksEndpointHandler(agent)
+    # Select handler based on deployment type
+    deployment_type = agent.get('deployment_type', 'databricks')
+    if deployment_type == 'fmapi':
+      handler = FMAPIHandler(agent, user_email=user_email)
+    else:
+      handler = DatabricksEndpointHandler(agent)
 
     # Create wrapper that collects data and saves to storage
     async def stream_and_store() -> AsyncGenerator[str, None]:
@@ -178,8 +183,13 @@ async def invoke_endpoint(request: Request, options: InvokeEndpointRequest):
                 trace_id = trace_info['trace_id']
                 logger.info(f'📋 Extracted trace_id from event level: {trace_id}')
 
+            # Capture text from delta events (FMAPI handler format)
+            if event_type == 'response.output_text.delta':
+              delta = event.get('delta', '')
+              final_text += delta
+
             # Process response.output_item.done events
-            if event_type == 'response.output_item.done':
+            elif event_type == 'response.output_item.done':
               item = event.get('item', {})
               item_type = item.get('type', '')
 
