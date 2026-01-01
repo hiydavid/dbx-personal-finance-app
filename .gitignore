@@ -1,5 +1,4 @@
 .env.local
-.claude
 
 # Node.js / Frontend
 client/node_modules/

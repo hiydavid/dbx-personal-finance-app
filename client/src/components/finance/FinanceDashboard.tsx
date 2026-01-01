@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { ChartTabs } from './ChartTabs';
 import { AssetsList } from './AssetsList';
 import { LiabilitiesList } from './LiabilitiesList';
+import { formatCurrency } from './formatters';
 import { useUserInfo } from '@/hooks/useUserInfo';
 import type { FinancialSummary } from '@/lib/finance-types';
 
@@ -53,27 +54,40 @@ export function FinanceDashboard() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <header className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Welcome back, {userName}</h1>
-          <p className="text-[var(--color-muted-foreground)]">
-            Here's what's happening with your finances
-          </p>
+      {/* Hero Section */}
+      <header className="animate-fade-in-up mb-8">
+        <p className="text-sm text-[var(--color-muted-foreground)] mb-1">
+          Welcome back, {userName}
+        </p>
+        <div className="flex items-end justify-between">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight bg-gradient-to-r from-[var(--color-text-heading)] via-[var(--color-text-heading)] to-[var(--color-accent-primary)] bg-clip-text text-transparent">
+              {formatCurrency(data.netWorth)}
+            </h1>
+            <p className="text-[var(--color-muted-foreground)] mt-1">
+              Total Net Worth
+            </p>
+          </div>
+          <button className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-accent-primary)] text-white rounded-xl font-medium hover:opacity-90 transition-all hover:scale-[1.02] shadow-lg shadow-[var(--color-accent-primary)]/25">
+            <Plus className="w-4 h-4" />
+            <span>Add Account</span>
+          </button>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-[var(--color-foreground)] text-[var(--color-background)] rounded-lg hover:opacity-90 transition-opacity">
-          <Plus className="w-4 h-4" />
-          <span className="font-medium">New</span>
-        </button>
       </header>
 
       {/* Chart Tabs (Cashflow / Net Worth) */}
-      <ChartTabs currentNetWorth={data.netWorth} />
+      <div className="opacity-0 animate-fade-in-up animate-delay-100">
+        <ChartTabs currentNetWorth={data.netWorth} />
+      </div>
 
       {/* Assets and Liabilities side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AssetsList assets={data.assets} />
-        <LiabilitiesList liabilities={data.liabilities} />
+        <div className="opacity-0 animate-fade-in-up animate-delay-200">
+          <AssetsList assets={data.assets} />
+        </div>
+        <div className="opacity-0 animate-fade-in-up animate-delay-300">
+          <LiabilitiesList liabilities={data.liabilities} />
+        </div>
       </div>
     </div>
   );

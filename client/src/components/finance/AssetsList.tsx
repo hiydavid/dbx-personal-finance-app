@@ -63,7 +63,7 @@ export function AssetsList({ assets, onAddClick }: AssetsListProps) {
   };
 
   return (
-    <div className="bg-card rounded-lg border shadow-sm">
+    <div className="card-elevated card-glow">
       {/* Header with total */}
       <div className="p-4 pb-3">
         <div className="flex items-center justify-between">
@@ -140,7 +140,7 @@ export function AssetsList({ assets, onAddClick }: AssetsListProps) {
               {/* Category header row */}
               <button
                 onClick={() => toggleCategory(category)}
-                className="w-full grid grid-cols-[1fr_100px_120px] gap-4 px-4 py-3 hover:bg-[var(--color-muted)]/50 transition-colors text-left"
+                className="w-full grid grid-cols-[1fr_100px_120px] gap-4 px-4 py-3 hover:bg-[var(--color-muted)]/50 transition-all duration-200 hover:translate-x-1 text-left"
               >
                 <div className="flex items-center gap-2">
                   <ChevronRight
