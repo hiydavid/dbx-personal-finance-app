@@ -37,6 +37,7 @@ class InvokeEndpointRequest(BaseModel):
   agent_id: str
   messages: list[dict[str, str]]
   chat_id: Optional[str] = None  # Optional - will create new chat if not provided
+  persona_id: Optional[str] = None  # Optional - investment advisor persona
 
 
 @router.post('/log_assessment')
@@ -134,7 +135,7 @@ async def invoke_endpoint(request: Request, options: InvokeEndpointRequest):
     # Select handler based on deployment type
     deployment_type = agent.get('deployment_type', 'databricks')
     if deployment_type == 'fmapi':
-      handler = FMAPIHandler(agent, user_email=user_email)
+      handler = FMAPIHandler(agent, user_email=user_email, persona_id=options.persona_id)
     else:
       handler = DatabricksEndpointHandler(agent)
 

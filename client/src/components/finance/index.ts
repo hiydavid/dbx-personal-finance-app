@@ -16,3 +16,5 @@ export { InvestmentsSummaryCards } from "./InvestmentsSummaryCards";
 export { AllocationChart } from "./AllocationChart";
 export { PerformanceChart } from "./PerformanceChart";
 export { HoldingsTable } from "./HoldingsTable";
+export { FinancialNews } from "./FinancialNews";
+export { NewsCard } from "./NewsCard";

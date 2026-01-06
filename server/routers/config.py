@@ -104,6 +104,37 @@ async def get_agents():
     return {'agents': [], 'error': f'Failed to load agents: {str(e)}'}
 
 
+@router.get('/config/personas')
+async def get_personas():
+  """Get list of available investment advisor personas.
+
+  Returns personas configured in config/app.json with their
+  id, name, and description (system_prompt is not exposed to frontend).
+  """
+  logger.info('Fetching available personas')
+
+  try:
+    personas_data = config_loader.personas_config
+    personas = personas_data.get('personas', [])
+
+    # Return personas without system_prompt (keep it server-side only)
+    safe_personas = [
+      {
+        'id': p.get('id'),
+        'name': p.get('name'),
+        'description': p.get('description'),
+      }
+      for p in personas
+    ]
+
+    logger.info(f'Loaded {len(safe_personas)} personas')
+    return {'personas': safe_personas}
+
+  except Exception as e:
+    logger.error(f'Error loading personas: {str(e)}')
+    return {'personas': [], 'error': f'Failed to load personas: {str(e)}'}
+
+
 @router.get('/config/app')
 async def get_app_config():
   """Get unified application configuration.

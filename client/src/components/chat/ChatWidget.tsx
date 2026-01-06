@@ -14,6 +14,9 @@ export function ChatWidget({ className = "" }: ChatWidgetProps) {
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(
     undefined,
   );
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | undefined>(
+    undefined,
+  );
   const [isStreaming, setIsStreaming] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -152,6 +155,8 @@ export function ChatWidget({ className = "" }: ChatWidgetProps) {
               onChatIdChange={handleChatIdChange}
               selectedAgentId={selectedAgentId}
               onAgentChange={setSelectedAgentId}
+              selectedPersonaId={selectedPersonaId}
+              onPersonaChange={setSelectedPersonaId}
               onStreamingChange={setIsStreaming}
               compact
               showAgentSelector={false}

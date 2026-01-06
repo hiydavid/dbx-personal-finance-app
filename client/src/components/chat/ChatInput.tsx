@@ -1,16 +1,20 @@
 
 import React, { useState, useRef, KeyboardEvent, useEffect } from "react";
-import { ArrowUp, ChevronDown, Check } from "lucide-react";
+import { ArrowUp, ChevronDown, Check, User } from "lucide-react";
 import { useAgents } from "@/hooks/useAgents";
+import { usePersonas } from "@/hooks/usePersonas";
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
   disabled?: boolean;
   selectedAgentId?: string;
   onAgentChange?: (agentId: string) => void;
-  hasMessages?: boolean; // Whether the current chat has messages (locks agent)
+  selectedPersonaId?: string;
+  onPersonaChange?: (personaId: string | undefined) => void;
+  hasMessages?: boolean; // Whether the current chat has messages (locks agent/persona)
   compact?: boolean; // Compact mode for widget
   showAgentSelector?: boolean; // Show agent dropdown
+  showPersonaSelector?: boolean; // Show persona dropdown
 }
 
 export function ChatInput({
@@ -18,16 +22,22 @@ export function ChatInput({
   disabled = false,
   selectedAgentId: propSelectedAgentId,
   onAgentChange,
+  selectedPersonaId: propSelectedPersonaId,
+  onPersonaChange,
   hasMessages = false,
   compact = false,
   showAgentSelector = true,
+  showPersonaSelector = true,
 }: ChatInputProps) {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { agents } = useAgents();
+  const { personas } = usePersonas();
   const [isAgentDropdownOpen, setIsAgentDropdownOpen] = useState(false);
+  const [isPersonaDropdownOpen, setIsPersonaDropdownOpen] = useState(false);
 
   const selectedAgent = propSelectedAgentId || "";
+  const selectedPersona = propSelectedPersonaId;
 
   // Set default agent when agents are loaded
   useEffect(() => {
@@ -36,21 +46,24 @@ export function ChatInput({
     }
   }, [agents, propSelectedAgentId, onAgentChange]);
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       if (!target.closest(".agent-dropdown-container")) {
         setIsAgentDropdownOpen(false);
       }
+      if (!target.closest(".persona-dropdown-container")) {
+        setIsPersonaDropdownOpen(false);
+      }
     };
 
-    if (isAgentDropdownOpen) {
+    if (isAgentDropdownOpen || isPersonaDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [isAgentDropdownOpen]);
+  }, [isAgentDropdownOpen, isPersonaDropdownOpen]);
 
   const handleSend = () => {
     if (message.trim() && !disabled) {
@@ -91,6 +104,7 @@ export function ChatInput({
   };
 
   const currentAgent = agents.find((a) => a.id === selectedAgent);
+  const currentPersona = personas.find((p) => p.id === selectedPersona);
 
   return (
     <div className={compact ? "px-3 py-2 bg-transparent" : "px-6 py-4 bg-transparent"}>
@@ -113,6 +127,97 @@ export function ChatInput({
 
             {/* Right side controls */}
             <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Persona Selector Dropdown */}
+              {showPersonaSelector && personas.length > 0 && (
+                <div className="relative persona-dropdown-container">
+                  <button
+                    onClick={() =>
+                      !hasMessages && setIsPersonaDropdownOpen(!isPersonaDropdownOpen)
+                    }
+                    disabled={hasMessages}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors duration-200 border ${
+                      hasMessages
+                        ? "bg-[var(--color-muted)] opacity-60 cursor-not-allowed border-transparent"
+                        : "bg-[var(--color-muted)] hover:bg-[var(--color-secondary)] border-transparent hover:border-[var(--color-border)]"
+                    }`}
+                    title={
+                      hasMessages ? "Persona locked for this chat" : "Select advisor persona"
+                    }
+                  >
+                    <User className="h-3 w-3 text-[var(--color-muted-foreground)]" />
+                    <span className="text-xs font-medium text-[var(--color-foreground)]">
+                      {currentPersona?.name || "Advisor"}
+                    </span>
+                    {!hasMessages && (
+                      <ChevronDown
+                        className={`h-3 w-3 text-[var(--color-muted-foreground)] transition-transform ${isPersonaDropdownOpen ? "rotate-180" : ""}`}
+                      />
+                    )}
+                  </button>
+
+                  {/* Persona Dropdown Menu */}
+                  {isPersonaDropdownOpen && (
+                    <div className={`absolute bottom-full right-0 mb-2 bg-[var(--color-background)]/95 backdrop-blur-xl rounded-xl shadow-xl border border-[var(--color-border)]/40 py-2 z-50 ${compact ? "w-[260px]" : "w-[300px]"}`}>
+                      {/* No persona option */}
+                      <button
+                        onClick={() => {
+                          onPersonaChange?.(undefined);
+                          setIsPersonaDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 hover:bg-[var(--color-accent-primary)]/10 transition-colors flex items-start justify-between gap-3 ${
+                          !selectedPersona
+                            ? "bg-[var(--color-accent-primary)]/10"
+                            : ""
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-sm text-[var(--color-foreground)] leading-tight">
+                            No Persona
+                          </div>
+                          <div className="text-xs text-[var(--color-muted-foreground)] mt-1 leading-snug">
+                            Generic finance assistant
+                          </div>
+                        </div>
+                        {!selectedPersona && (
+                          <Check className="h-4 w-4 text-[var(--color-accent-primary)] flex-shrink-0 mt-0.5" />
+                        )}
+                      </button>
+
+                      {/* Divider */}
+                      <div className="h-px bg-[var(--color-border)]/40 my-1" />
+
+                      {/* Persona options */}
+                      {personas.map((persona) => (
+                        <button
+                          key={persona.id}
+                          onClick={() => {
+                            onPersonaChange?.(persona.id);
+                            setIsPersonaDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-3 hover:bg-[var(--color-accent-primary)]/10 transition-colors flex items-start justify-between gap-3 ${
+                            selectedPersona === persona.id
+                              ? "bg-[var(--color-accent-primary)]/10"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-sm text-[var(--color-foreground)] leading-tight">
+                              {persona.name}
+                            </div>
+                            <div className="text-xs text-[var(--color-muted-foreground)] mt-1 leading-snug">
+                              {persona.description}
+                            </div>
+                          </div>
+                          {selectedPersona === persona.id && (
+                            <Check className="h-4 w-4 text-[var(--color-accent-primary)] flex-shrink-0 mt-0.5" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Agent Selector Dropdown */}
               {showAgentSelector && (
                 <div className="relative agent-dropdown-container">

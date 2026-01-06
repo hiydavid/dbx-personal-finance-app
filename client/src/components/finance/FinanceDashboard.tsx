@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { ChartTabs } from './ChartTabs';
 import { AssetsList } from './AssetsList';
 import { LiabilitiesList } from './LiabilitiesList';
+import { FinancialNews } from './FinancialNews';
 import { formatCurrency } from './formatters';
 import { useUserInfo } from '@/hooks/useUserInfo';
 import type { FinancialSummary } from '@/lib/finance-types';
@@ -88,6 +89,11 @@ export function FinanceDashboard() {
         <div className="opacity-0 animate-fade-in-up animate-delay-300">
           <LiabilitiesList liabilities={data.liabilities} />
         </div>
+      </div>
+
+      {/* Latest Financial News */}
+      <div className="opacity-0 animate-fade-in-up animate-delay-400">
+        <FinancialNews />
       </div>
     </div>
   );
