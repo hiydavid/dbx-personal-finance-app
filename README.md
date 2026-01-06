@@ -31,6 +31,7 @@ Create a `.env.local` file in the project root:
 ```bash
 DATABRICKS_HOST=https://your-workspace.cloud.databricks.com
 DATABRICKS_TOKEN=dapi...  # Only needed for local development
+NEWSAPI_KEY=...
 ```
 
 ### 3. Run Development Servers

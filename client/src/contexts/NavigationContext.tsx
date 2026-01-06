@@ -56,6 +56,9 @@ interface NavigationContextType {
   // Agent state
   selectedAgentId: string;
   setSelectedAgentId: (id: string) => void;
+  // Persona state
+  selectedPersonaId: string | undefined;
+  setSelectedPersonaId: (id: string | undefined) => void;
   // Streaming state
   isStreaming: boolean;
   setIsStreaming: (streaming: boolean) => void;
@@ -123,6 +126,9 @@ export function NavigationProvider({
 
   // Agent state
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+
+  // Persona state
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | undefined>(undefined);
 
   // Edit mode
   const [isEditMode, setIsEditMode] = useState(false);
@@ -273,6 +279,8 @@ export function NavigationProvider({
         setIsResizingChatPanel,
         selectedAgentId,
         setSelectedAgentId,
+        selectedPersonaId,
+        setSelectedPersonaId,
         isStreaming,
         setIsStreaming,
         chats,

@@ -91,10 +91,16 @@ def _format_currency(value: Optional[float]) -> str:
 class FMAPIHandler(BaseDeploymentHandler):
   """Handler for Databricks FMAPI endpoints with tool calling support."""
 
-  def __init__(self, agent_config: Dict[str, Any], user_email: str):
+  def __init__(
+    self,
+    agent_config: Dict[str, Any],
+    user_email: str,
+    persona_id: Optional[str] = None,
+  ):
     super().__init__(agent_config)
     self.endpoint_name = agent_config.get('endpoint_name')
     self.user_email = user_email
+    self.persona_id = persona_id
 
     # Initialize OpenAI client with Databricks base URL
     databricks_host = os.environ.get('DATABRICKS_HOST', '').rstrip('/')
@@ -141,22 +147,56 @@ class FMAPIHandler(BaseDeploymentHandler):
       logger.warning(f'Failed to fetch profile for system prompt: {e}', exc_info=True)
     return None
 
+  def _get_persona_prompt(self) -> Optional[str]:
+    """Get persona-specific system prompt if persona_id is set."""
+    if not self.persona_id:
+      return None
+
+    from server.config_loader import config_loader
+
+    persona = config_loader.get_persona_by_id(self.persona_id)
+    if persona:
+      return persona.get('system_prompt')
+    return None
+
   def _build_system_prompt(self, profile_data: Optional[Dict]) -> str:
-    """Build system prompt with user context."""
-    base_prompt = (
-      'You are a helpful personal finance assistant. '
-      "You have access to the user's financial data through tools.\n\n"
-      "When answering questions about the user's finances:\n"
-      '1. Use the available tools to fetch current data - '
-      "don't make assumptions about their financial situation\n"
-      '2. Provide specific numbers and actionable insights\n'
-      '3. Be conversational but accurate\n'
-      '4. If data is missing or unavailable, acknowledge this clearly\n\n'
-      'Available tools:\n'
-      '- get_user_profile: Get user demographics, employment, income, and financial goals\n'
-      '- get_financial_summary: Get net worth, assets, and liabilities breakdown\n'
-      '- get_transactions: Get recent transaction history and cashflow patterns'
-    )
+    """Build system prompt with user context and optional persona."""
+    # Check for persona-specific prompt
+    persona_prompt = self._get_persona_prompt()
+
+    if persona_prompt:
+      # Use persona prompt as base, add tools context
+      base_prompt = (
+        f'{persona_prompt}\n\n'
+        "You have access to the user's financial data through tools. "
+        "Use them to provide personalized advice.\n\n"
+        "When answering questions about the user's finances:\n"
+        '1. Use the available tools to fetch current data - '
+        "don't make assumptions about their financial situation\n"
+        '2. Provide specific numbers and actionable insights aligned with your investment philosophy\n'
+        '3. Be conversational but accurate\n'
+        '4. If data is missing or unavailable, acknowledge this clearly\n\n'
+        'Available tools:\n'
+        '- get_user_profile: Get user demographics, employment, income, and financial goals\n'
+        '- get_financial_summary: Get net worth, assets, and liabilities breakdown\n'
+        '- get_transactions: Get recent transaction history and cashflow patterns'
+      )
+    else:
+      # Default generic finance assistant prompt
+      base_prompt = (
+        'You are a helpful personal finance assistant. '
+        "You have access to the user's financial data through tools.\n\n"
+        "When answering questions about the user's finances:\n"
+        '1. Use the available tools to fetch current data - '
+        "don't make assumptions about their financial situation\n"
+        '2. Provide specific numbers and actionable insights\n'
+        '3. Be conversational but accurate\n'
+        '4. If data is missing or unavailable, acknowledge this clearly\n\n'
+        'Available tools:\n'
+        '- get_user_profile: Get user demographics, employment, income, and financial goals\n'
+        '- get_financial_summary: Get net worth, assets, and liabilities breakdown\n'
+        '- get_transactions: Get recent transaction history and cashflow patterns'
+      )
 
     if profile_data:
       context_parts = ['\n\nUser Context (for personalization):']
