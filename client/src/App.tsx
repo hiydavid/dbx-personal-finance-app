@@ -8,6 +8,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { CashflowPage } from '@/pages/CashflowPage';
 import { NetWorthPage } from '@/pages/NetWorthPage';
+import { InvestmentsPage } from '@/pages/InvestmentsPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/cashflow" element={<CashflowPage />} />
                   <Route path="/networth" element={<NetWorthPage />} />
+                  <Route path="/investments" element={<InvestmentsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                 </Routes>
               </MainLayout>

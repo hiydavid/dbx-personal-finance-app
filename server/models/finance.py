@@ -117,3 +117,67 @@ class LiabilityApiResponse(BaseModel):
     success: bool
     data: Optional[Liability] = None
     error: Optional[str] = None
+
+
+# Investment models
+AssetClass = Literal['stocks', 'bonds', 'cash']
+
+
+class Holding(BaseModel):
+    id: str
+    ticker: str
+    name: str
+    asset_class: AssetClass = Field(alias='assetClass')
+    shares: float
+    cost_basis: float = Field(alias='costBasis')
+    current_price: float = Field(alias='currentPrice')
+    current_value: float = Field(alias='currentValue')
+    gain_loss: float = Field(alias='gainLoss')
+    gain_loss_percent: float = Field(alias='gainLossPercent')
+    day_change: float = Field(alias='dayChange')
+    week_change: float = Field(alias='weekChange')
+    month_change: float = Field(alias='monthChange')
+    ytd_change: float = Field(alias='ytdChange')
+    year_change: float = Field(alias='yearChange')
+
+    model_config = {'populate_by_name': True}
+
+
+class AssetClassAllocation(BaseModel):
+    asset_class: AssetClass = Field(alias='assetClass')
+    value: float
+    percentage: float
+    holdings_count: int = Field(alias='holdingsCount')
+
+    model_config = {'populate_by_name': True}
+
+
+class PortfolioHistoryPoint(BaseModel):
+    date: date
+    value: float
+
+
+class InvestmentsSummary(BaseModel):
+    total_value: float = Field(alias='totalValue')
+    total_cost_basis: float = Field(alias='totalCostBasis')
+    total_gain_loss: float = Field(alias='totalGainLoss')
+    total_gain_loss_percent: float = Field(alias='totalGainLossPercent')
+    day_change: float = Field(alias='dayChange')
+    day_change_percent: float = Field(alias='dayChangePercent')
+
+    model_config = {'populate_by_name': True}
+
+
+class InvestmentsData(BaseModel):
+    holdings: list[Holding]
+    allocations: list[AssetClassAllocation]
+    history: list[PortfolioHistoryPoint]
+    summary: InvestmentsSummary
+
+    model_config = {'populate_by_name': True}
+
+
+class InvestmentsApiResponse(BaseModel):
+    success: bool
+    data: Optional[InvestmentsData] = None
+    error: Optional[str] = None
