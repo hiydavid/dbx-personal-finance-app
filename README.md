@@ -114,27 +114,6 @@ curl http://localhost:8000/api/finance/summary
 }
 ```
 
-## Sample Data
-
-The app comes with hardcoded sample data:
-
-### Assets ($655,000)
-
-- Checking Account: $15,000
-- Emergency Savings: $25,000
-- 401(k): $120,000
-- Brokerage Account: $45,000
-- Primary Residence: $450,000
-
-### Liabilities ($375,500)
-
-- Mortgage: $320,000
-- Auto Loan: $18,000
-- Credit Card: $2,500
-- Student Loan: $35,000
-
-### Net Worth: $279,500
-
 ## Deploying to Databricks Apps
 
 ### 1. Build the frontend
@@ -170,7 +149,3 @@ mypy server/
 ### Modifying Sample Data
 
 Edit `server/data/sample_finance.py` to change the sample financial data.
-
-## License
-
-MIT

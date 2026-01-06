@@ -3,11 +3,13 @@ import logging
 from fastapi import APIRouter
 
 from server.data.sample_finance import add_asset, add_liability, get_financial_summary
+from server.data.sample_investments import get_investments_data
 from server.data.sample_transactions import get_transactions_data
 from server.models.finance import (
     AssetApiResponse,
     AssetCreate,
     FinanceApiResponse,
+    InvestmentsApiResponse,
     LiabilityApiResponse,
     LiabilityCreate,
     TransactionsApiResponse,
@@ -75,3 +77,18 @@ async def create_liability(liability_data: LiabilityCreate):
     except Exception as e:
         logger.error(f'Error creating liability: {e}')
         return LiabilityApiResponse(success=False, data=None, error=str(e))
+
+
+@router.get('/investments', response_model=InvestmentsApiResponse)
+async def get_investments(period: str = '1Y'):
+    """Get investment portfolio data including holdings, allocations, and history.
+
+    Args:
+        period: Time period for history data ('1M', '3M', '6M', 'YTD', '1Y', 'ALL')
+    """
+    try:
+        data = get_investments_data(period=period)
+        return InvestmentsApiResponse(success=True, data=data)
+    except Exception as e:
+        logger.error(f'Error fetching investments: {e}')
+        return InvestmentsApiResponse(success=False, data=None, error=str(e))
