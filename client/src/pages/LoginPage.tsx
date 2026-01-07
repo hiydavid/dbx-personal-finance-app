@@ -1,15 +1,9 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { LogIn, User } from "lucide-react";
-
-const DEMO_USERS = [
-  { email: "alice@company.com", name: "Alice (Demo User)" },
-];
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
-  const navigate = useNavigate();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,11 +23,6 @@ export function LoginPage() {
 
     // Navigate to dashboard and force a page reload to refresh all contexts
     window.location.href = "/dashboard";
-  };
-
-  const handleDemoUserSelect = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setError("");
   };
 
   return (
@@ -86,41 +75,11 @@ export function LoginPage() {
               Continue
             </button>
           </form>
-
-          {/* Demo Users */}
-          {DEMO_USERS.length > 0 && (
-            <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
-              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide mb-3">
-                Demo Users
-              </p>
-              <div className="space-y-2">
-                {DEMO_USERS.map((user) => (
-                  <button
-                    key={user.email}
-                    onClick={() => handleDemoUserSelect(user.email)}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-muted)]/50 hover:border-[var(--color-accent-primary)]/50 transition-colors text-left"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-[var(--color-muted)] flex items-center justify-center text-[var(--color-text-primary)] text-sm font-medium">
-                      {user.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-[var(--color-text-primary)]">
-                        {user.name}
-                      </p>
-                      <p className="text-xs text-[var(--color-text-muted)]">
-                        {user.email}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer Note */}
         <p className="text-center text-xs text-[var(--color-text-muted)] mt-6">
-          This is a demo app. Enter any email that matches your seed data.
+          Demo users: alice@company.com or bob@company.com
         </p>
       </div>
     </div>

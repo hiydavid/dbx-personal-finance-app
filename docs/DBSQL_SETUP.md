@@ -60,16 +60,22 @@ sed "s/\${schema}/$SCHEMA/g" scripts/sql/create_tables.sql | \
 
 ## Step 3: Seed Sample Data
 
-Populate the tables with sample data for testing:
+Populate the tables with sample data for testing. Two demo user profiles are available:
 
-1. Open `scripts/sql/seed_data.sql`
+| Script | User | Profile |
+|--------|------|---------|
+| `seed_data_alice.sql` | `alice@company.com` | Established professional (higher income, homeowner, moderate risk) |
+| `seed_data_bob.sql` | `bob@company.com` | Young professional (early career, renter, aggressive risk) |
+
+**To seed data:**
+
+1. Open one of the seed scripts (e.g., `scripts/sql/seed_data_alice.sql`)
 2. Copy the contents to a Databricks SQL query
-3. Find & replace:
-   - `${schema}` → your schema (e.g., `main.personal_finance`)
-   - `${user_email}` → your Databricks user email (e.g., `user@company.com`)
+3. Update the `schema_name` variable if needed (default: `main.personal_finance`)
 4. Execute the query
+5. Repeat for additional demo users if desired
 
-This creates ~50 sample transactions, 5 assets, 4 liabilities, 6 holdings, and 12 months of portfolio history.
+Each seed script creates ~50 sample transactions, 5 assets, 4 liabilities, 6 holdings, and 12 months of portfolio history.
 
 ## Step 4: Get SQL Warehouse Connection Details
 
@@ -117,10 +123,10 @@ Ensure all 4 required environment variables are set in `.env.local`:
 
 ### Empty data in the app
 
-1. Verify the `user_email` in your seed data matches your Databricks login email
+1. Verify you're logged in with an email that has seed data (`alice@company.com` or `bob@company.com`)
 2. Check the tables have data:
    ```sql
-   SELECT * FROM main.personal_finance.assets WHERE user_email = 'your@email.com';
+   SELECT * FROM main.personal_finance.assets WHERE user_email = 'alice@company.com';
    ```
 
 ### Connection errors
@@ -131,7 +137,13 @@ Ensure all 4 required environment variables are set in `.env.local`:
 
 ## Multi-User Support
 
-All tables include a `user_email` column for data isolation. Each user only sees their own data. To add data for additional users, run the seed script with different `${user_email}` values.
+All tables include a `user_email` column for data isolation. Each user only sees their own data.
+
+**Available demo users:**
+- `alice@company.com` - Established professional
+- `bob@company.com` - Young professional
+
+To add data for additional users, create a new seed script based on the existing templates with a different `user_email` value.
 
 ## Schema Reference
 

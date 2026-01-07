@@ -4,7 +4,7 @@
 -- ============================================================================
 -- CONFIGURATION: Set your schema here (catalog.schema format)
 -- ============================================================================
-DECLARE OR REPLACE schema_name = 'main.personal_finance';
+DECLARE OR REPLACE schema_name = 'main.personal_finance'; -- replace with actual schema name
 
 -- ============================================================================
 -- Table: assets
