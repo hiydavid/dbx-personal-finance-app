@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
 } from "react";
 
 interface UserContextType {
@@ -14,9 +15,67 @@ interface UserContextType {
   lakebaseError: string | null;
   loading: boolean;
   error: Error | null;
+  isAuthenticated: boolean;
+  logout: () => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
+
+// Storage key for demo user
+const DEMO_USER_KEY = "demoUserEmail";
+
+/**
+ * Get the demo user email from localStorage
+ */
+export function getDemoUser(): string | null {
+  return localStorage.getItem(DEMO_USER_KEY);
+}
+
+/**
+ * Set the demo user email in localStorage
+ */
+export function setDemoUser(email: string): void {
+  localStorage.setItem(DEMO_USER_KEY, email);
+}
+
+/**
+ * Clear the demo user from localStorage
+ */
+export function clearDemoUser(): void {
+  localStorage.removeItem(DEMO_USER_KEY);
+}
+
+/**
+ * Create headers object with demo user header if set
+ */
+export function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const demoUser = getDemoUser();
+  if (demoUser) {
+    headers["x-demo-user"] = demoUser;
+  }
+  return headers;
+}
+
+/**
+ * Fetch wrapper that includes demo user header
+ */
+export async function fetchWithAuth(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const demoUser = getDemoUser();
+  const headers = new Headers(options.headers);
+
+  if (demoUser) {
+    headers.set("x-demo-user", demoUser);
+  }
+
+  return fetch(url, {
+    ...options,
+    headers,
+  });
+}
 
 export function useUserContext() {
   const context = useContext(UserContext);
@@ -39,8 +98,25 @@ export function UserProvider({ children }: UserProviderProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  // Check if demo user is set in localStorage
+  const demoUser = getDemoUser();
+  const isAuthenticated = !!demoUser;
+
+  const logout = useCallback(() => {
+    clearDemoUser();
+    // Redirect to login page
+    window.location.href = "/login";
+  }, []);
+
   useEffect(() => {
-    fetch("/api/me")
+    // If no demo user is set, skip fetching user info
+    if (!demoUser) {
+      setLoading(false);
+      return;
+    }
+
+    // Fetch user info with the demo user header
+    fetchWithAuth("/api/me")
       .then((res) => {
         if (!res.ok) {
           throw new Error(`Failed to load user info: ${res.status}`);
@@ -63,7 +139,7 @@ export function UserProvider({ children }: UserProviderProps) {
         setError(err);
         setLoading(false);
       });
-  }, []);
+  }, [demoUser]);
 
   return (
     <UserContext.Provider
@@ -75,6 +151,8 @@ export function UserProvider({ children }: UserProviderProps) {
         lakebaseError,
         loading,
         error,
+        isAuthenticated,
+        logout,
       }}
     >
       {children}

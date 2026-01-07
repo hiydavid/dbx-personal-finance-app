@@ -1,5 +1,7 @@
-import { User, Briefcase, DollarSign, Target, Calendar, Users, Building2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Briefcase, DollarSign, Target, Calendar, Users, Building2, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/components/finance';
+import { fetchWithAuth } from '@/contexts/UserContext';
 import {
   MARITAL_STATUS_OPTIONS,
   EMPLOYMENT_STATUS_OPTIONS,
@@ -7,27 +9,6 @@ import {
   TAX_FILING_STATUS_OPTIONS,
 } from '@/lib/profile-types';
 import type { UserProfile } from '@/lib/profile-types';
-
-// Mock profile data - simulates data collected during sign up
-const MOCK_PROFILE: UserProfile = {
-  userEmail: 'david.huang@example.com',
-  dateOfBirth: '1985-03-15',
-  age: 39,
-  maritalStatus: 'married',
-  numberOfDependents: 2,
-  employmentStatus: 'employed_full_time',
-  employerName: 'Databricks',
-  jobTitle: 'Senior Software Engineer',
-  yearsEmployed: 4,
-  annualIncome: 185000,
-  riskTolerance: 'moderate',
-  taxFilingStatus: 'married_filing_jointly',
-  investmentExperienceYears: 12,
-  retirementAgeTarget: 60,
-  notes: 'Planning for children\'s college education. Interested in diversifying into real estate.',
-  createdAt: '2024-01-15T10:30:00Z',
-  updatedAt: '2024-12-01T14:22:00Z',
-};
 
 function getLabel(options: { value: string; label: string }[], value: string | null | undefined): string {
   if (!value) return '—';
@@ -54,7 +35,55 @@ function ProfileField({ label, value, icon }: ProfileFieldProps) {
 }
 
 export function ProfileView() {
-  const profile = MOCK_PROFILE;
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        setLoading(true);
+        const response = await fetchWithAuth('/api/profile');
+        const result = await response.json();
+
+        if (result.success) {
+          setProfile(result.data);
+        } else {
+          setError(result.error || 'Failed to load profile');
+        }
+      } catch (err) {
+        setError('Network error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProfile();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--color-accent-primary)]" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-center">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="p-6 text-center">
+        <p className="text-[var(--color-muted-foreground)]">No profile data found.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6 max-w-4xl">

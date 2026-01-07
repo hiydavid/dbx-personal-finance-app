@@ -9,6 +9,7 @@ import { FunctionCallNotification } from "@/components/notifications/FunctionCal
 import { Message } from "@/lib/types";
 import { useUserInfo } from "@/hooks/useUserInfo";
 import { useAgents } from "@/hooks/useAgents";
+import { fetchWithAuth, getAuthHeaders } from "@/contexts/UserContext";
 
 // Dev-only logger
 const devLog = (...args: any[]) => {
@@ -156,7 +157,7 @@ export function ChatCore({
 
   const loadChatHistory = async (id: string) => {
     try {
-      const response = await fetch(`/api/chats/${id}`);
+      const response = await fetchWithAuth(`/api/chats/${id}`);
 
       if (!response.ok) {
         console.error(
@@ -225,7 +226,7 @@ export function ChatCore({
       const backendUrl = import.meta.env.VITE_BACKEND_URL || "";
       const response = await fetch(`${backendUrl}/api/invoke_endpoint`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
           agent_id: selectedAgentId,
           chat_id: chatId, // Will be null for new chats - backend creates one
@@ -506,7 +507,7 @@ export function ChatCore({
 
       const response = await fetch("/api/log_assessment", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
           trace_id: message.traceId,
           agent_id: selectedAgentId,

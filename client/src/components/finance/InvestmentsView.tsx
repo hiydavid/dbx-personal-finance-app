@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { fetchWithAuth } from '@/contexts/UserContext';
 import type { InvestmentsData } from '@/lib/finance-types';
 import { InvestmentsSummaryCards } from './InvestmentsSummaryCards';
 import { AllocationChart } from './AllocationChart';
@@ -14,7 +15,7 @@ export function InvestmentsView() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/finance/investments?period=${period}`);
+      const response = await fetchWithAuth(`/api/finance/investments?period=${period}`);
       const result = await response.json();
 
       if (result.success) {

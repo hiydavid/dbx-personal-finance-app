@@ -6,6 +6,7 @@ import { LiabilitiesList } from './LiabilitiesList';
 import { FinancialNews } from './FinancialNews';
 import { formatCurrency } from './formatters';
 import { useUserInfo } from '@/hooks/useUserInfo';
+import { fetchWithAuth } from '@/contexts/UserContext';
 import type { FinancialSummary } from '@/lib/finance-types';
 
 export function FinanceDashboard() {
@@ -17,7 +18,7 @@ export function FinanceDashboard() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await fetch('/api/finance/summary');
+        const response = await fetchWithAuth('/api/finance/summary');
         const result = await response.json();
 
         if (result.success) {

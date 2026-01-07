@@ -1,12 +1,12 @@
 # Personal Finance Assistant App
 
-A personal finance app built on the Databricks GenAI App Template. Track your assets, liabilities, and net worth at a glance.
+A personal finance app built on the Databricks GenAI App Template. Track your assets, liabilities, and net worth at a glance with AI-powered financial analysis.
 
 ## Prerequisites
 
 - Python 3.11+
 - Node.js 18+ (or Bun)
-- Databricks workspace (for production deployment)
+- Databricks workspace with Unity Catalog (for DBSQL data backend)
 
 ## Quick Start
 
@@ -26,15 +26,31 @@ cd ..
 
 ### 2. Configure Environment Variables
 
-Create a `.env.local` file in the project root:
+Create a `.env.local` file in the project root (see `.env.template` for all options):
 
 ```bash
+# Databricks connection (required)
 DATABRICKS_HOST=https://your-workspace.cloud.databricks.com
-DATABRICKS_TOKEN=dapi...  # Only needed for local development
+DATABRICKS_TOKEN=dapi...
+
+# Databricks SQL data backend (optional - falls back to sample data if not set)
+DBSQL_SCHEMA=catalog.schema
+DATABRICKS_SERVER_HOSTNAME=your-workspace.cloud.databricks.com
+DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/abc123
+
+# News API (optional)
 NEWSAPI_KEY=...
 ```
 
-### 3. Run Development Servers
+### 3. Setup DBSQL Tables (Optional)
+
+To use real data from Databricks SQL instead of sample data:
+
+1. Run the DDL script in Databricks SQL Editor: `scripts/sql/create_tables.sql`
+2. Seed with sample data: `scripts/sql/seed_data.sql`
+3. See `docs/DBSQL_SETUP.md` for detailed instructions
+
+### 4. Run Development Servers
 
 #### Option A: Using the setup script
 
@@ -59,10 +75,14 @@ cd client
 npm run dev
 ```
 
-### 4. Access the App
+### 5. Access the App
 
 - Frontend: [http://localhost:3000](http://localhost:3000)
 - API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+On first visit, you'll see a login page. Enter an email that matches your seed data (e.g., `alice@company.com`).
+
+> **Important:** The email you enter must match the `user_email` in your DBSQL tables. If using sample data, update the `user_email` variable in `scripts/sql/seed_data.sql` before running the seed script.
 
 ## Project Structure
 
@@ -71,28 +91,60 @@ npm run dev
 │   └── src/
 │       ├── components/
 │       │   └── finance/    # Dashboard components
-│       ├── lib/
-│       │   └── finance-types.ts
-│       └── pages/
+│       ├── contexts/       # React contexts (User, Theme, etc.)
+│       ├── pages/          # Page components (Login, Dashboard, etc.)
+│       └── lib/
 ├── server/                 # FastAPI backend
-│   ├── data/
-│   │   └── sample_finance.py
-│   ├── models/
-│   │   └── finance.py
-│   └── routers/
-│       └── finance.py
+│   ├── data/               # Sample data (fallback when DBSQL not configured)
+│   ├── db/                 # Database connections (DBSQL, Lakebase)
+│   ├── models/             # Pydantic models
+│   ├── routers/            # API endpoints
+│   └── services/           # Business logic, agent handlers
+├── scripts/
+│   └── sql/                # DBSQL DDL and seed scripts
+├── docs/                   # Documentation
 └── config/
     └── app.json            # App configuration
 ```
+
+## Data Backend
+
+The app supports two data backends:
+
+### 1. Sample Data (Default)
+
+When DBSQL is not configured, the app uses in-memory sample data from `server/data/`.
+
+### 2. Databricks SQL
+
+When configured, the app queries Delta tables in Unity Catalog. See `docs/DBSQL_SETUP.md` for setup instructions.
+
+Required environment variables:
+- `DBSQL_SCHEMA` - Unity Catalog schema (e.g., `main.personal_finance`)
+- `DATABRICKS_SERVER_HOSTNAME` - SQL Warehouse hostname
+- `DATABRICKS_HTTP_PATH` - SQL Warehouse HTTP path
+- `DATABRICKS_TOKEN` - Personal access token
+
+## Authentication
+
+The app uses a demo login system for local development:
+
+1. User enters an email on the login page (stored in localStorage)
+2. All API calls include this email in the `x-demo-user` header
+3. Backend queries DBSQL tables filtered by this email
+
+In production (Databricks Apps), authentication uses the `x-forwarded-user` header set by the platform.
 
 ## API Endpoints
 
 | Endpoint | Method | Description |
 | ---------- | -------- | ------------- |
 | `/api/finance/summary` | GET | Returns financial summary with assets, liabilities, and net worth |
-| `/api/finance/assets` | POST | Add a new asset (in-memory) |
-| `/api/finance/liabilities` | POST | Add a new liability (in-memory) |
+| `/api/finance/assets` | POST | Add a new asset |
+| `/api/finance/liabilities` | POST | Add a new liability |
 | `/api/finance/transactions` | GET | Returns transaction data with daily cashflow |
+| `/api/finance/investments` | GET | Returns investment holdings and portfolio history |
+| `/api/profile` | GET/PUT/PATCH/DELETE | User profile management |
 | `/api/health` | GET | Health check |
 
 ### Example Response
@@ -143,10 +195,10 @@ databricks apps deploy . --app-name personal-finance
 # Frontend
 cd client && npx tsc --noEmit
 
-# Backend (with mypy)
-mypy server/
+# Backend (with ruff)
+ruff check server/
 ```
 
 ### Modifying Sample Data
 
-Edit `server/data/sample_finance.py` to change the sample financial data.
+Edit files in `server/data/` to change the sample financial data, or set up DBSQL tables with your own data.

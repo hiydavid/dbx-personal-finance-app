@@ -28,8 +28,10 @@ def _is_local_development() -> bool:
 async def get_current_user(request: Request) -> str:
   """Get the current user's email from the request.
 
-  In production (Databricks Apps), extracts user from x-forwarded-user header.
-  In development, calls WorkspaceClient.current_user.me() and caches the result.
+  Priority order:
+  1. x-demo-user header (demo mode - allows selecting any user)
+  2. x-forwarded-user header (Databricks Apps production)
+  3. WorkspaceClient.current_user.me() (development fallback)
 
   Args:
     request: FastAPI Request object
@@ -40,13 +42,19 @@ async def get_current_user(request: Request) -> str:
   Raises:
     ValueError: If user cannot be determined
   """
-  # Try to get user from header first (production mode)
+  # Priority 1: Demo user header (for demo/testing - allows selecting any user)
+  demo_user = request.headers.get('x-demo-user')
+  if demo_user:
+    logger.debug(f'Got user from x-demo-user header: {demo_user}')
+    return demo_user
+
+  # Priority 2: Databricks Apps header (production mode)
   user = request.headers.get('x-forwarded-user')
   if user:
     logger.debug(f'Got user from x-forwarded-user header: {user}')
     return user
 
-  # Fall back to WorkspaceClient for development
+  # Priority 3: Fall back to WorkspaceClient for development
   if _is_local_development():
     return await _get_dev_user()
 

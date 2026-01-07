@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Edit, FlaskConical, ExternalLink, ArrowRightLeft, Wallet, TrendingUp, User } from "lucide-react";
+import { LayoutDashboard, Edit, FlaskConical, ExternalLink, ArrowRightLeft, Wallet, TrendingUp, User, LogOut } from "lucide-react";
 import { getAppConfig, type AppBranding } from "@/lib/config";
 import { useUserInfo } from "@/hooks/useUserInfo";
 import { useAgents } from "@/hooks/useAgents";
+import { useUserContext } from "@/contexts/UserContext";
 
 interface LeftSidebarProps {
   onEditModeToggle: () => void;
@@ -22,6 +23,7 @@ export function LeftSidebar({ onEditModeToggle }: LeftSidebarProps) {
   const mlflowRef = useRef<HTMLDivElement>(null);
   const { userInfo } = useUserInfo();
   const { agents } = useAgents();
+  const { logout } = useUserContext();
 
   useEffect(() => {
     getAppConfig().then((config) => setBranding(config.branding));
@@ -204,18 +206,27 @@ export function LeftSidebar({ onEditModeToggle }: LeftSidebarProps) {
           <span>Customize</span>
         </button>
 
-        {/* User Info */}
+        {/* User Info with Logout */}
         {displayName && (
-          <div
-            className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--color-muted)]/30"
-            title={userInfo?.user}
-          >
-            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[var(--color-accent-primary)] to-[var(--color-accent-primary)]/80 flex items-center justify-center text-white text-xs font-medium shadow-sm flex-shrink-0">
-              {displayName.charAt(0).toUpperCase()}
+          <div className="flex items-center gap-2">
+            <div
+              className="flex-1 flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--color-muted)]/30"
+              title={userInfo?.user}
+            >
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[var(--color-accent-primary)] to-[var(--color-accent-primary)]/80 flex items-center justify-center text-white text-xs font-medium shadow-sm flex-shrink-0">
+                {displayName.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-sm text-[var(--color-text-primary)] truncate">
+                {displayName}
+              </span>
             </div>
-            <span className="text-sm text-[var(--color-text-primary)] truncate">
-              {displayName}
-            </span>
+            <button
+              onClick={logout}
+              className="p-2 rounded-lg hover:bg-[var(--color-muted)]/50 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors"
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         )}
       </div>

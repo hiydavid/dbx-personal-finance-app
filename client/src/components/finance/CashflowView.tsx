@@ -3,6 +3,7 @@ import { DailyCashflowChart } from './DailyCashflowChart';
 import { TransactionTable } from './TransactionTable';
 import { TransactionFilters } from './TransactionFilters';
 import { formatCurrency } from './formatters';
+import { fetchWithAuth } from '@/contexts/UserContext';
 import type {
   Transaction,
   DailyCashflow,
@@ -32,7 +33,7 @@ export function CashflowView() {
     async function fetchData() {
       try {
         setLoading(true);
-        const response = await fetch(`/api/finance/transactions?days=${chartDays}`);
+        const response = await fetchWithAuth(`/api/finance/transactions?days=${chartDays}`);
         const result = await response.json();
 
         if (result.success) {

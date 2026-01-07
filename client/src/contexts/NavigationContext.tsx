@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
+import { fetchWithAuth } from '@/contexts/UserContext';
 
 export interface Chat {
   id: string;
@@ -159,7 +160,7 @@ export function NavigationProvider({
   // Fetch chats from API
   const fetchChats = useCallback(async (signal?: AbortSignal) => {
     try {
-      const response = await fetch('/api/chats', { signal });
+      const response = await fetchWithAuth('/api/chats', { signal });
       const data: ChatData[] = await response.json();
 
       const chatList: Chat[] = data.map((chat) => ({

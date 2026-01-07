@@ -16,7 +16,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { useAgents } from "@/hooks/useAgents";
-import { useUserContext } from "@/contexts/UserContext";
+import { useUserContext, fetchWithAuth, getAuthHeaders } from "@/contexts/UserContext";
 
 export interface Chat {
   id: string;
@@ -71,7 +71,7 @@ export function Sidebar({
   const handleDeleteChat = async (chatId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await fetch(`/api/chats/${chatId}`, { method: "DELETE" });
+      await fetchWithAuth(`/api/chats/${chatId}`, { method: "DELETE" });
       onChatsChange(chats.filter((chat) => chat.id !== chatId));
       if (currentChatId === chatId) {
         onNewChat();
@@ -95,7 +95,7 @@ export function Sidebar({
     try {
       await fetch(`/api/chats/${chatId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({ title: editTitle }),
       });
 
