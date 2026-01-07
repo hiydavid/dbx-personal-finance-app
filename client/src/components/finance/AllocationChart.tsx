@@ -78,9 +78,9 @@ export function AllocationChart({ allocations }: AllocationChartProps) {
   const totalValue = allocations.reduce((sum, a) => sum + a.value, 0);
 
   return (
-    <div className="card-elevated card-glow p-5">
+    <div className="card-elevated card-glow p-5 h-full flex flex-col">
       <h3 className="text-lg font-semibold mb-4">Asset Allocation</h3>
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-6 flex-1">
         <div className="relative w-[180px] h-[180px]">
           <Doughnut data={chartData} options={options} />
           <div className="absolute inset-0 flex flex-col items-center justify-center">

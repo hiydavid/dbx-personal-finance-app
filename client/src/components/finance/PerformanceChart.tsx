@@ -145,8 +145,8 @@ export function PerformanceChart({ history, period, onPeriodChange }: Performanc
   const changePercent = startValue > 0 ? ((endValue - startValue) / startValue) * 100 : 0;
 
   return (
-    <div className="card-elevated card-glow p-5">
-      <div className="flex items-center justify-between mb-4">
+    <div className="card-elevated card-glow p-5 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div>
           <h3 className="text-lg font-semibold">Performance</h3>
           <div className="flex items-center gap-2 mt-1">
@@ -174,7 +174,7 @@ export function PerformanceChart({ history, period, onPeriodChange }: Performanc
           ))}
         </div>
       </div>
-      <div className="h-[200px]">
+      <div className="flex-1 min-h-[200px]">
         <Line data={chartData} options={options} />
       </div>
     </div>
