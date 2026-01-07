@@ -364,9 +364,11 @@ class FMAPIHandler(BaseDeploymentHandler):
             yield f'data: {json.dumps(event)}\n\n'
 
           # Add assistant message with tool calls to history
-          llm_messages.append({
+          # Note: content must be None (not empty string) when there's no text,
+          # otherwise FMAPI rejects with "text content blocks must be non-empty"
+          assistant_msg: Dict[str, Any] = {
             'role': 'assistant',
-            'content': message.content or '',
+            'content': message.content,  # None is valid, empty string is not
             'tool_calls': [
               {
                 'id': tc.id,
@@ -378,7 +380,10 @@ class FMAPIHandler(BaseDeploymentHandler):
               }
               for tc in message.tool_calls
             ],
-          })
+          }
+          llm_messages.append(assistant_msg)
+          tc_count = len(message.tool_calls)
+          logger.info(f'📝 Assistant msg: content={message.content!r}, tool_calls={tc_count}')
 
           # Execute each tool
           for tool_call in message.tool_calls:
@@ -398,11 +403,23 @@ class FMAPIHandler(BaseDeploymentHandler):
             yield f'data: {json.dumps(output_event)}\n\n'
 
             # Add tool result to messages
-            llm_messages.append({
+            # Include 'name' field as some APIs require it
+            tool_result_msg = {
               'role': 'tool',
               'tool_call_id': tool_call.id,
+              'name': tool_call.function.name,
               'content': result,
-            })
+            }
+            llm_messages.append(tool_result_msg)
+            logger.info(f'📝 Tool result: id={tool_call.id}, name={tool_call.function.name}')
+
+          # Log message array before next iteration
+          logger.info(f'📝 Messages before iteration {iteration + 1}: {len(llm_messages)} messages')
+          for i, msg in enumerate(llm_messages):
+            role = msg.get('role')
+            has_tool_calls = 'tool_calls' in msg
+            tool_call_id = msg.get('tool_call_id', '')
+            logger.info(f'  [{i}] role={role}, tool_calls={has_tool_calls}, tc_id={tool_call_id}')
 
           # Continue loop - LLM will process tool results
           continue
