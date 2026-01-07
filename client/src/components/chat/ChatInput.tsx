@@ -157,7 +157,7 @@ export function ChatInput({
 
                   {/* Persona Dropdown Menu */}
                   {isPersonaDropdownOpen && (
-                    <div className={`absolute bottom-full right-0 mb-2 bg-[var(--color-background)]/95 backdrop-blur-xl rounded-xl shadow-xl border border-[var(--color-border)]/40 py-2 z-50 ${compact ? "w-[260px]" : "w-[300px]"}`}>
+                    <div className={`absolute bottom-full right-0 mb-2 bg-[var(--color-bg-secondary)] rounded-xl shadow-xl border border-[var(--color-border)] py-2 z-[100] ${compact ? "w-[260px]" : "w-[300px]"}`}>
                       {/* No persona option */}
                       <button
                         onClick={() => {
@@ -247,7 +247,7 @@ export function ChatInput({
 
                   {/* Agent Dropdown Menu */}
                   {isAgentDropdownOpen && agents.length > 0 && (
-                    <div className={`absolute bottom-full right-0 mb-2 bg-[var(--color-background)]/95 backdrop-blur-xl rounded-xl shadow-xl border border-[var(--color-border)]/40 py-2 z-50 ${compact ? "w-[240px]" : "w-[280px]"}`}>
+                    <div className={`absolute bottom-full right-0 mb-2 bg-[var(--color-bg-secondary)] rounded-xl shadow-xl border border-[var(--color-border)] py-2 z-[100] ${compact ? "w-[240px]" : "w-[280px]"}`}>
                       {agents.map((agent) => (
                         <button
                           key={agent.id}

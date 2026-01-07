@@ -67,7 +67,7 @@ export function InvestmentsView() {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         <div className="opacity-0 animate-fade-in-up animate-delay-200">
           <AllocationChart allocations={data.allocations} />
         </div>
