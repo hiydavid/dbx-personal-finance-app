@@ -1,6 +1,7 @@
 """User profile management endpoints.
 
 All endpoints are scoped to the current authenticated user.
+Uses Databricks SQL when configured, otherwise falls back to Lakebase PostgreSQL.
 """
 
 import logging
@@ -11,6 +12,12 @@ from fastapi import APIRouter, Request
 from sqlalchemy import select
 
 from server.db import UserProfileModel, session_scope
+from server.db.dbsql import (
+  delete_user_profile_from_dbsql,
+  get_user_profile_from_dbsql,
+  is_dbsql_configured,
+  upsert_user_profile_in_dbsql,
+)
 from server.models.profile import (
   ProfileApiResponse,
   UserProfileCreate,
@@ -63,21 +70,26 @@ async def get_profile(request: Request):
   """Get the current user's profile.
 
   Returns profile data if exists, or null data with success=True if no profile yet.
+  Uses Databricks SQL when configured, otherwise falls back to Lakebase.
   """
   try:
     user_email = await get_current_user(request)
     logger.info(f'Fetching profile for user: {user_email}')
 
-    async with session_scope() as session:
-      result = await session.execute(
-        select(UserProfileModel).where(UserProfileModel.user_email == user_email)
-      )
-      profile = result.scalar_one_or_none()
+    if is_dbsql_configured():
+      profile = get_user_profile_from_dbsql(user_email)
+      return ProfileApiResponse(success=True, data=profile)
+    else:
+      async with session_scope() as session:
+        result = await session.execute(
+          select(UserProfileModel).where(UserProfileModel.user_email == user_email)
+        )
+        profile = result.scalar_one_or_none()
 
-      if profile:
-        return ProfileApiResponse(success=True, data=_model_to_response(profile))
-      else:
-        return ProfileApiResponse(success=True, data=None)
+        if profile:
+          return ProfileApiResponse(success=True, data=_model_to_response(profile))
+        else:
+          return ProfileApiResponse(success=True, data=None)
 
   except Exception as e:
     logger.error(f'Error fetching profile: {e}')
@@ -89,41 +101,43 @@ async def upsert_profile(request: Request, body: UserProfileCreate):
   """Create or replace the current user's profile (upsert).
 
   If profile exists, replaces all fields. If not, creates new profile.
+  Uses Databricks SQL when configured, otherwise falls back to Lakebase.
   """
   try:
     user_email = await get_current_user(request)
     logger.info(f'Upserting profile for user: {user_email}')
 
-    async with session_scope() as session:
-      # Check if profile exists
-      result = await session.execute(
-        select(UserProfileModel).where(UserProfileModel.user_email == user_email)
-      )
-      profile = result.scalar_one_or_none()
+    profile_data = body.model_dump(by_alias=False, exclude_unset=False)
+    # Convert financial_goals to list of dicts
+    if profile_data.get('financial_goals'):
+      profile_data['financial_goals'] = [
+        goal.model_dump(by_alias=False) if hasattr(goal, 'model_dump') else goal
+        for goal in profile_data['financial_goals']
+      ]
 
-      profile_data = body.model_dump(by_alias=False, exclude_unset=False)
-      # Convert financial_goals to list of dicts for JSONB
-      if profile_data.get('financial_goals'):
-        profile_data['financial_goals'] = [
-          goal.model_dump(by_alias=False) if hasattr(goal, 'model_dump') else goal
-          for goal in profile_data['financial_goals']
-        ]
+    if is_dbsql_configured():
+      profile = upsert_user_profile_in_dbsql(user_email=user_email, **profile_data)
+      return ProfileApiResponse(success=True, data=profile)
+    else:
+      async with session_scope() as session:
+        result = await session.execute(
+          select(UserProfileModel).where(UserProfileModel.user_email == user_email)
+        )
+        profile = result.scalar_one_or_none()
 
-      if profile:
-        # Update existing
-        for key, value in profile_data.items():
-          setattr(profile, key, value)
-        logger.info(f'Updated existing profile for: {user_email}')
-      else:
-        # Create new
-        profile = UserProfileModel(user_email=user_email, **profile_data)
-        session.add(profile)
-        logger.info(f'Created new profile for: {user_email}')
+        if profile:
+          for key, value in profile_data.items():
+            setattr(profile, key, value)
+          logger.info(f'Updated existing profile for: {user_email}')
+        else:
+          profile = UserProfileModel(user_email=user_email, **profile_data)
+          session.add(profile)
+          logger.info(f'Created new profile for: {user_email}')
 
-      await session.flush()
-      await session.refresh(profile)
+        await session.flush()
+        await session.refresh(profile)
 
-      return ProfileApiResponse(success=True, data=_model_to_response(profile))
+        return ProfileApiResponse(success=True, data=_model_to_response(profile))
 
   except Exception as e:
     logger.error(f'Error upserting profile: {e}')
@@ -136,40 +150,51 @@ async def update_profile(request: Request, body: UserProfileUpdate):
 
   Only updates fields that are explicitly provided (not null).
   Creates profile if it doesn't exist.
+  Uses Databricks SQL when configured, otherwise falls back to Lakebase.
   """
   try:
     user_email = await get_current_user(request)
     logger.info(f'Patching profile for user: {user_email}')
 
-    async with session_scope() as session:
-      result = await session.execute(
-        select(UserProfileModel).where(UserProfileModel.user_email == user_email)
-      )
-      profile = result.scalar_one_or_none()
+    # Only include fields that were explicitly set
+    update_data = body.model_dump(by_alias=False, exclude_unset=True)
+    # Convert financial_goals to list of dicts
+    if update_data.get('financial_goals'):
+      update_data['financial_goals'] = [
+        goal.model_dump(by_alias=False) if hasattr(goal, 'model_dump') else goal
+        for goal in update_data['financial_goals']
+      ]
 
-      # Only include fields that were explicitly set
-      update_data = body.model_dump(by_alias=False, exclude_unset=True)
-      # Convert financial_goals to list of dicts for JSONB
-      if update_data.get('financial_goals'):
-        update_data['financial_goals'] = [
-          goal.model_dump(by_alias=False) if hasattr(goal, 'model_dump') else goal
-          for goal in update_data['financial_goals']
-        ]
+    if is_dbsql_configured():
+      # For DBSQL, merge with existing profile data
+      existing = get_user_profile_from_dbsql(user_email)
+      if existing:
+        # Merge existing data with updates
+        existing_data = existing.model_dump(by_alias=False)
+        existing_data.update(update_data)
+        update_data = existing_data
+      profile = upsert_user_profile_in_dbsql(user_email=user_email, **update_data)
+      return ProfileApiResponse(success=True, data=profile)
+    else:
+      async with session_scope() as session:
+        result = await session.execute(
+          select(UserProfileModel).where(UserProfileModel.user_email == user_email)
+        )
+        profile = result.scalar_one_or_none()
 
-      if profile:
-        for key, value in update_data.items():
-          setattr(profile, key, value)
-        logger.info(f'Patched profile for: {user_email}')
-      else:
-        # Create new profile with partial data
-        profile = UserProfileModel(user_email=user_email, **update_data)
-        session.add(profile)
-        logger.info(f'Created new profile via patch for: {user_email}')
+        if profile:
+          for key, value in update_data.items():
+            setattr(profile, key, value)
+          logger.info(f'Patched profile for: {user_email}')
+        else:
+          profile = UserProfileModel(user_email=user_email, **update_data)
+          session.add(profile)
+          logger.info(f'Created new profile via patch for: {user_email}')
 
-      await session.flush()
-      await session.refresh(profile)
+        await session.flush()
+        await session.refresh(profile)
 
-      return ProfileApiResponse(success=True, data=_model_to_response(profile))
+        return ProfileApiResponse(success=True, data=_model_to_response(profile))
 
   except Exception as e:
     logger.error(f'Error patching profile: {e}')
@@ -178,23 +203,34 @@ async def update_profile(request: Request, body: UserProfileUpdate):
 
 @router.delete('', response_model=ProfileApiResponse)
 async def delete_profile(request: Request):
-  """Delete the current user's profile."""
+  """Delete the current user's profile.
+
+  Uses Databricks SQL when configured, otherwise falls back to Lakebase.
+  """
   try:
     user_email = await get_current_user(request)
     logger.info(f'Deleting profile for user: {user_email}')
 
-    async with session_scope() as session:
-      result = await session.execute(
-        select(UserProfileModel).where(UserProfileModel.user_email == user_email)
-      )
-      profile = result.scalar_one_or_none()
-
-      if profile:
-        await session.delete(profile)
+    if is_dbsql_configured():
+      deleted = delete_user_profile_from_dbsql(user_email)
+      if deleted:
         logger.info(f'Deleted profile for: {user_email}')
         return ProfileApiResponse(success=True, data=None)
       else:
         return ProfileApiResponse(success=False, error='Profile not found')
+    else:
+      async with session_scope() as session:
+        result = await session.execute(
+          select(UserProfileModel).where(UserProfileModel.user_email == user_email)
+        )
+        profile = result.scalar_one_or_none()
+
+        if profile:
+          await session.delete(profile)
+          logger.info(f'Deleted profile for: {user_email}')
+          return ProfileApiResponse(success=True, data=None)
+        else:
+          return ProfileApiResponse(success=False, error='Profile not found')
 
   except Exception as e:
     logger.error(f'Error deleting profile: {e}')

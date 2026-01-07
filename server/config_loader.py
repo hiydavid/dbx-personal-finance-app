@@ -80,6 +80,11 @@ class ConfigLoader:
     """Get agents configuration (from app_config.agents)."""
     return {'agents': self.app_config.get('agents', [])}
 
+  @property
+  def personas_config(self) -> Dict[str, Any]:
+    """Get personas configuration (from app_config.personas)."""
+    return {'personas': self.app_config.get('personas', [])}
+
   def get_agent_by_id(self, agent_id: str) -> Optional[Dict[str, Any]]:
     """Get a specific agent configuration by ID or endpoint_name.
 
@@ -110,6 +115,21 @@ class ConfigLoader:
           result['endpoint_name'] = result['id']
         return result
 
+    return None
+
+  def get_persona_by_id(self, persona_id: str) -> Optional[Dict[str, Any]]:
+    """Get a specific persona configuration by ID.
+
+    Args:
+        persona_id: The persona ID to look up
+
+    Returns:
+        Persona configuration dict, or None if not found
+    """
+    personas = self.app_config.get('personas', [])
+    for persona in personas:
+      if persona.get('id') == persona_id:
+        return persona
     return None
 
   def reload(self):

@@ -7,6 +7,8 @@ export function ChatPage() {
     handleChatIdChange,
     selectedAgentId,
     setSelectedAgentId,
+    selectedPersonaId,
+    setSelectedPersonaId,
     setIsStreaming,
   } = useNavigation();
 
@@ -16,6 +18,8 @@ export function ChatPage() {
       onChatIdChange={handleChatIdChange}
       selectedAgentId={selectedAgentId}
       onAgentChange={setSelectedAgentId}
+      selectedPersonaId={selectedPersonaId}
+      onPersonaChange={setSelectedPersonaId}
       onStreamingChange={setIsStreaming}
     />
   );

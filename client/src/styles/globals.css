@@ -113,6 +113,25 @@
   background: var(--color-scrollbar-thumb-hover, rgb(148 163 184 / 0.7));
 }
 
+/* Thin horizontal scrollbar for news cards */
+.scrollbar-thin::-webkit-scrollbar {
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: var(--color-scrollbar-track, transparent);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb, rgb(148 163 184 / 0.3));
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scrollbar-thumb-hover, rgb(148 163 184 / 0.5));
+}
+
 /* Aviation/Aerospace Themed Animations */
 @keyframes float-0 {
   0%,

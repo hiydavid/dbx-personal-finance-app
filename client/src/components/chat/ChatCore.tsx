@@ -9,6 +9,7 @@ import { FunctionCallNotification } from "@/components/notifications/FunctionCal
 import { Message } from "@/lib/types";
 import { useUserInfo } from "@/hooks/useUserInfo";
 import { useAgents } from "@/hooks/useAgents";
+import { fetchWithAuth, getAuthHeaders } from "@/contexts/UserContext";
 
 // Dev-only logger
 const devLog = (...args: any[]) => {
@@ -22,12 +23,16 @@ interface ChatCoreProps {
   onChatIdChange?: (chatId: string) => void;
   selectedAgentId?: string;
   onAgentChange?: (agentId: string) => void;
+  selectedPersonaId?: string;
+  onPersonaChange?: (personaId: string | undefined) => void;
   initialMessage?: string;
   onStreamingChange?: (isStreaming: boolean) => void;
   /** Compact mode for widget - smaller UI elements */
   compact?: boolean;
   /** Show agent selector in input */
   showAgentSelector?: boolean;
+  /** Show persona selector in input */
+  showPersonaSelector?: boolean;
 }
 
 export function ChatCore({
@@ -35,10 +40,13 @@ export function ChatCore({
   onChatIdChange,
   selectedAgentId,
   onAgentChange,
+  selectedPersonaId,
+  onPersonaChange,
   initialMessage,
   onStreamingChange,
   compact = false,
   showAgentSelector = true,
+  showPersonaSelector = true,
 }: ChatCoreProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -149,7 +157,7 @@ export function ChatCore({
 
   const loadChatHistory = async (id: string) => {
     try {
-      const response = await fetch(`/api/chats/${id}`);
+      const response = await fetchWithAuth(`/api/chats/${id}`);
 
       if (!response.ok) {
         console.error(
@@ -218,10 +226,11 @@ export function ChatCore({
       const backendUrl = import.meta.env.VITE_BACKEND_URL || "";
       const response = await fetch(`${backendUrl}/api/invoke_endpoint`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
           agent_id: selectedAgentId,
           chat_id: chatId, // Will be null for new chats - backend creates one
+          persona_id: selectedPersonaId, // Optional investment advisor persona
           messages: [...messages, userMessage].map((m) => ({
             role: m.role,
             content: m.content,
@@ -498,7 +507,7 @@ export function ChatCore({
 
       const response = await fetch("/api/log_assessment", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
           trace_id: message.traceId,
           agent_id: selectedAgentId,
@@ -548,9 +557,12 @@ export function ChatCore({
           disabled={isLoading}
           selectedAgentId={selectedAgentId}
           onAgentChange={onAgentChange}
+          selectedPersonaId={selectedPersonaId}
+          onPersonaChange={onPersonaChange}
           hasMessages={messages.length > 0}
           compact={compact}
           showAgentSelector={showAgentSelector}
+          showPersonaSelector={showPersonaSelector}
         />
       </div>
 

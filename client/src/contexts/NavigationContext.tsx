@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
+import { fetchWithAuth } from '@/contexts/UserContext';
 
 export interface Chat {
   id: string;
@@ -56,6 +57,9 @@ interface NavigationContextType {
   // Agent state
   selectedAgentId: string;
   setSelectedAgentId: (id: string) => void;
+  // Persona state
+  selectedPersonaId: string | undefined;
+  setSelectedPersonaId: (id: string | undefined) => void;
   // Streaming state
   isStreaming: boolean;
   setIsStreaming: (streaming: boolean) => void;
@@ -124,6 +128,9 @@ export function NavigationProvider({
   // Agent state
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
 
+  // Persona state
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | undefined>(undefined);
+
   // Edit mode
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -153,7 +160,7 @@ export function NavigationProvider({
   // Fetch chats from API
   const fetchChats = useCallback(async (signal?: AbortSignal) => {
     try {
-      const response = await fetch('/api/chats', { signal });
+      const response = await fetchWithAuth('/api/chats', { signal });
       const data: ChatData[] = await response.json();
 
       const chatList: Chat[] = data.map((chat) => ({
@@ -273,6 +280,8 @@ export function NavigationProvider({
         setIsResizingChatPanel,
         selectedAgentId,
         setSelectedAgentId,
+        selectedPersonaId,
+        setSelectedPersonaId,
         isStreaming,
         setIsStreaming,
         chats,

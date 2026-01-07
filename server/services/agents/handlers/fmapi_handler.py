@@ -91,10 +91,16 @@ def _format_currency(value: Optional[float]) -> str:
 class FMAPIHandler(BaseDeploymentHandler):
   """Handler for Databricks FMAPI endpoints with tool calling support."""
 
-  def __init__(self, agent_config: Dict[str, Any], user_email: str):
+  def __init__(
+    self,
+    agent_config: Dict[str, Any],
+    user_email: str,
+    persona_id: Optional[str] = None,
+  ):
     super().__init__(agent_config)
     self.endpoint_name = agent_config.get('endpoint_name')
     self.user_email = user_email
+    self.persona_id = persona_id
 
     # Initialize OpenAI client with Databricks base URL
     databricks_host = os.environ.get('DATABRICKS_HOST', '').rstrip('/')
@@ -141,22 +147,57 @@ class FMAPIHandler(BaseDeploymentHandler):
       logger.warning(f'Failed to fetch profile for system prompt: {e}', exc_info=True)
     return None
 
+  def _get_persona_prompt(self) -> Optional[str]:
+    """Get persona-specific system prompt if persona_id is set."""
+    if not self.persona_id:
+      return None
+
+    from server.config_loader import config_loader
+
+    persona = config_loader.get_persona_by_id(self.persona_id)
+    if persona:
+      return persona.get('system_prompt')
+    return None
+
   def _build_system_prompt(self, profile_data: Optional[Dict]) -> str:
-    """Build system prompt with user context."""
-    base_prompt = (
-      'You are a helpful personal finance assistant. '
-      "You have access to the user's financial data through tools.\n\n"
-      "When answering questions about the user's finances:\n"
-      '1. Use the available tools to fetch current data - '
-      "don't make assumptions about their financial situation\n"
-      '2. Provide specific numbers and actionable insights\n'
-      '3. Be conversational but accurate\n'
-      '4. If data is missing or unavailable, acknowledge this clearly\n\n'
-      'Available tools:\n'
-      '- get_user_profile: Get user demographics, employment, income, and financial goals\n'
-      '- get_financial_summary: Get net worth, assets, and liabilities breakdown\n'
-      '- get_transactions: Get recent transaction history and cashflow patterns'
-    )
+    """Build system prompt with user context and optional persona."""
+    # Check for persona-specific prompt
+    persona_prompt = self._get_persona_prompt()
+
+    if persona_prompt:
+      # Use persona prompt as base, add tools context
+      base_prompt = (
+        f'{persona_prompt}\n\n'
+        "You have access to the user's financial data through tools. "
+        "Use them to provide personalized advice.\n\n"
+        "When answering questions about the user's finances:\n"
+        '1. Use the available tools to fetch current data - '
+        "don't make assumptions about their financial situation\n"
+        '2. Provide specific numbers and actionable insights '
+        'aligned with your investment philosophy\n'
+        '3. Be conversational but accurate\n'
+        '4. If data is missing or unavailable, acknowledge this clearly\n\n'
+        'Available tools:\n'
+        '- get_user_profile: Get user demographics, employment, income, and financial goals\n'
+        '- get_financial_summary: Get net worth, assets, and liabilities breakdown\n'
+        '- get_transactions: Get recent transaction history and cashflow patterns'
+      )
+    else:
+      # Default generic finance assistant prompt
+      base_prompt = (
+        'You are a helpful personal finance assistant. '
+        "You have access to the user's financial data through tools.\n\n"
+        "When answering questions about the user's finances:\n"
+        '1. Use the available tools to fetch current data - '
+        "don't make assumptions about their financial situation\n"
+        '2. Provide specific numbers and actionable insights\n'
+        '3. Be conversational but accurate\n'
+        '4. If data is missing or unavailable, acknowledge this clearly\n\n'
+        'Available tools:\n'
+        '- get_user_profile: Get user demographics, employment, income, and financial goals\n'
+        '- get_financial_summary: Get net worth, assets, and liabilities breakdown\n'
+        '- get_transactions: Get recent transaction history and cashflow patterns'
+      )
 
     if profile_data:
       context_parts = ['\n\nUser Context (for personalization):']
@@ -196,46 +237,68 @@ class FMAPIHandler(BaseDeploymentHandler):
     """Execute a tool and return the result as JSON string."""
     try:
       if tool_name == 'get_user_profile':
-        from sqlalchemy import select
+        from server.db.dbsql import get_user_profile_from_dbsql, is_dbsql_configured
 
-        from server.db import UserProfileModel, session_scope
-
-        async with session_scope() as session:
-          result = await session.execute(
-            select(UserProfileModel).where(UserProfileModel.user_email == self.user_email)
-          )
-          profile = result.scalar_one_or_none()
+        if is_dbsql_configured():
+          profile = get_user_profile_from_dbsql(self.user_email)
           if profile:
+            return profile.model_dump_json(by_alias=True)
+          return json.dumps({
+            'message': 'No profile found. User has not set up their profile yet.'
+          })
+        else:
+          from sqlalchemy import select
+
+          from server.db import UserProfileModel, session_scope
+
+          async with session_scope() as session:
+            result = await session.execute(
+              select(UserProfileModel).where(UserProfileModel.user_email == self.user_email)
+            )
+            profile = result.scalar_one_or_none()
+            if profile:
+              return json.dumps({
+                'age': _calculate_age(profile.date_of_birth),
+                'dateOfBirth': str(profile.date_of_birth) if profile.date_of_birth else None,
+                'maritalStatus': profile.marital_status,
+                'numberOfDependents': profile.number_of_dependents,
+                'employmentStatus': profile.employment_status,
+                'employerName': profile.employer_name,
+                'jobTitle': profile.job_title,
+                'yearsEmployed': profile.years_employed,
+                'annualIncome': profile.annual_income,
+                'riskTolerance': profile.risk_tolerance,
+                'taxFilingStatus': profile.tax_filing_status,
+                'financialGoals': profile.financial_goals,
+                'investmentExperienceYears': profile.investment_experience_years,
+                'retirementAgeTarget': profile.retirement_age_target,
+                'notes': profile.notes,
+              })
             return json.dumps({
-              'age': _calculate_age(profile.date_of_birth),
-              'dateOfBirth': str(profile.date_of_birth) if profile.date_of_birth else None,
-              'maritalStatus': profile.marital_status,
-              'numberOfDependents': profile.number_of_dependents,
-              'employmentStatus': profile.employment_status,
-              'employerName': profile.employer_name,
-              'jobTitle': profile.job_title,
-              'yearsEmployed': profile.years_employed,
-              'annualIncome': profile.annual_income,
-              'riskTolerance': profile.risk_tolerance,
-              'taxFilingStatus': profile.tax_filing_status,
-              'financialGoals': profile.financial_goals,
-              'investmentExperienceYears': profile.investment_experience_years,
-              'retirementAgeTarget': profile.retirement_age_target,
-              'notes': profile.notes,
+              'message': 'No profile found. User has not set up their profile yet.'
             })
-          return json.dumps({'message': 'No profile found. User has not set up their profile yet.'})
 
       elif tool_name == 'get_financial_summary':
-        from server.data.sample_finance import get_financial_summary
+        from server.db.dbsql import get_financial_summary_from_dbsql, is_dbsql_configured
 
-        summary = get_financial_summary()
+        if is_dbsql_configured():
+          summary = get_financial_summary_from_dbsql(self.user_email)
+        else:
+          from server.data.sample_finance import get_financial_summary
+
+          summary = get_financial_summary()
         return summary.model_dump_json()
 
       elif tool_name == 'get_transactions':
-        from server.data.sample_transactions import get_transactions_data
+        from server.db.dbsql import get_transactions_from_dbsql, is_dbsql_configured
 
         days = arguments.get('days', 30)
-        data = get_transactions_data(days=days)
+        if is_dbsql_configured():
+          data = get_transactions_from_dbsql(self.user_email, days=days)
+        else:
+          from server.data.sample_transactions import get_transactions_data
+
+          data = get_transactions_data(days=days)
         return data.model_dump_json()
 
       else:

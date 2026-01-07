@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Sankey, Tooltip, Rectangle, Layer, ResponsiveContainer } from 'recharts';
 import { formatCurrency } from './formatters';
+import { fetchWithAuth } from '@/contexts/UserContext';
 import type { Transaction, TransactionCategory } from '@/lib/finance-types';
 
 type TimePeriod = '30D' | '60D' | '90D';
@@ -213,7 +214,7 @@ export function CashflowSankey() {
     async function fetchData() {
       try {
         setLoading(true);
-        const response = await fetch(`/api/finance/transactions?days=${periodDays}`);
+        const response = await fetchWithAuth(`/api/finance/transactions?days=${periodDays}`);
         const result = await response.json();
         if (result.success) {
           setTransactions(result.data.transactions);

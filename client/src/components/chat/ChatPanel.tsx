@@ -8,6 +8,7 @@ import { ChatPanelResizeHandle } from '@/components/layout/ResizeHandle';
 export function ChatPanel() {
   const [chatId, setChatId] = useState<string | undefined>(undefined);
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(undefined);
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | undefined>(undefined);
   const [isStreaming, setIsStreaming] = useState(false);
   const { agents } = useAgents();
   const { chatPanelWidth, setChatPanelCollapsed } = useNavigation();
@@ -72,6 +73,8 @@ export function ChatPanel() {
           onChatIdChange={setChatId}
           selectedAgentId={selectedAgentId}
           onAgentChange={setSelectedAgentId}
+          selectedPersonaId={selectedPersonaId}
+          onPersonaChange={setSelectedPersonaId}
           onStreamingChange={setIsStreaming}
           compact
           showAgentSelector={false}

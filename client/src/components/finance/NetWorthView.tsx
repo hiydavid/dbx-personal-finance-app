@@ -5,6 +5,7 @@ import { SummaryCards } from './SummaryCards';
 import { AssetsList } from './AssetsList';
 import { LiabilitiesList } from './LiabilitiesList';
 import { AddFinanceItemModal } from '@/components/modals/AddFinanceItemModal';
+import { fetchWithAuth } from '@/contexts/UserContext';
 
 export function NetWorthView() {
   const [data, setData] = useState<FinancialSummary | null>(null);
@@ -20,7 +21,7 @@ export function NetWorthView() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/finance/summary');
+      const response = await fetchWithAuth('/api/finance/summary');
       const result = await response.json();
 
       if (!result.success) {

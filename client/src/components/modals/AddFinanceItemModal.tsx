@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Wallet, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { fetchWithAuth } from "@/contexts/UserContext";
 import type { Asset, Liability, AssetApiResponse, LiabilityApiResponse } from "@/lib/finance-types";
 
 type ItemType = "asset" | "liability";
@@ -97,7 +98,7 @@ export function AddFinanceItemModal({
         ? { name: name.trim(), category, value: numValue, description: description.trim() || undefined }
         : { name: name.trim(), category, amount: numValue, description: description.trim() || undefined };
 
-      const response = await fetch(endpoint, {
+      const response = await fetchWithAuth(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
