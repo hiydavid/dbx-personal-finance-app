@@ -1,11 +1,11 @@
--- Personal Finance App - Sample Seed Data
+-- Personal Finance App - Seed Data for Alice (Established Professional)
 -- Run this script in Databricks SQL after creating tables
 
 -- ============================================================================
 -- CONFIGURATION: Set your schema and user email here
 -- ============================================================================
-DECLARE OR REPLACE schema_name = 'main.personal_finance';
-DECLARE OR REPLACE user_email = 'user@company.com';
+DECLARE OR REPLACE schema_name = 'main.personal_finance'; -- replace with actual schema name
+DECLARE OR REPLACE user_email = 'alice@company.com';
 
 -- ============================================================================
 -- Seed Assets

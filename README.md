@@ -47,7 +47,7 @@ NEWSAPI_KEY=...
 To use real data from Databricks SQL instead of sample data:
 
 1. Run the DDL script in Databricks SQL Editor: `scripts/sql/create_tables.sql`
-2. Seed with sample data: `scripts/sql/seed_data.sql`
+2. Seed with sample data: `scripts/sql/seed_data_alice.sql` and/or `scripts/sql/seed_data_bob.sql`
 3. See `docs/DBSQL_SETUP.md` for detailed instructions
 
 ### 4. Run Development Servers
@@ -80,9 +80,12 @@ npm run dev
 - Frontend: [http://localhost:3000](http://localhost:3000)
 - API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-On first visit, you'll see a login page. Enter an email that matches your seed data (e.g., `alice@company.com`).
+On first visit, you'll see a login page. Enter an email that matches your seed data:
 
-> **Important:** The email you enter must match the `user_email` in your DBSQL tables. If using sample data, update the `user_email` variable in `scripts/sql/seed_data.sql` before running the seed script.
+- `alice@company.com` - Established professional (higher income, homeowner, moderate risk)
+- `bob@company.com` - Young professional (early career, renter, aggressive risk)
+
+> **Note:** The email you enter must match the `user_email` in your DBSQL tables. Run the corresponding seed script(s) to populate data for each demo user.
 
 ## Project Structure
 
@@ -120,6 +123,7 @@ When DBSQL is not configured, the app uses in-memory sample data from `server/da
 When configured, the app queries Delta tables in Unity Catalog. See `docs/DBSQL_SETUP.md` for setup instructions.
 
 Required environment variables:
+
 - `DBSQL_SCHEMA` - Unity Catalog schema (e.g., `main.personal_finance`)
 - `DATABRICKS_SERVER_HOSTNAME` - SQL Warehouse hostname
 - `DATABRICKS_HTTP_PATH` - SQL Warehouse HTTP path
