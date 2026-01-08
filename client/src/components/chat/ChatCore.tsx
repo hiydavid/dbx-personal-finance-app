@@ -5,7 +5,6 @@ import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { FeedbackModal } from "@/components/modals/FeedbackModal";
 import { TraceModal } from "@/components/modals/TraceModal";
-import { FunctionCallNotification } from "@/components/notifications/FunctionCallNotification";
 import { Message } from "@/lib/types";
 import { useUserInfo } from "@/hooks/useUserInfo";
 import { useAgents } from "@/hooks/useAgents";
@@ -541,6 +540,7 @@ export function ChatCore({
         <MessageList
           messages={messages}
           isLoading={isLoading}
+          activeFunctionCalls={activeFunctionCalls}
           onFeedback={handleFeedback}
           onViewTrace={handleTrace}
           selectedAgentId={selectedAgentId}
@@ -587,15 +587,6 @@ export function ChatCore({
         mlflowTraceUrl={getMlflowTraceUrl(traceModal.traceId)}
       />
 
-      {!compact && (
-        <FunctionCallNotification
-          functionCalls={activeFunctionCalls}
-          onDismiss={() => setActiveFunctionCalls([])}
-          autoHideDuration={5000}
-          isProcessing={isLoading}
-          agentName={selectedAgentId}
-        />
-      )}
     </div>
   );
 }

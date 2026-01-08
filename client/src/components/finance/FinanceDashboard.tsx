@@ -12,6 +12,7 @@ import {
   User,
   Target,
   Shield,
+  Clock,
 } from 'lucide-react';
 import { BentoCard, BentoCardHeader, BentoCardValue } from './BentoCard';
 import { FinancialNews } from './FinancialNews';
@@ -108,6 +109,7 @@ export function FinanceDashboard() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
           <BentoSkeleton className="lg:col-span-2 lg:row-span-2" />
+          <BentoSkeleton />
           <BentoSkeleton />
           <BentoSkeleton />
           <BentoSkeleton />
@@ -338,7 +340,10 @@ export function FinanceDashboard() {
               </div>
               {profileData.investmentExperienceYears !== undefined && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-[var(--color-text-muted)]">Experience</span>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-[var(--color-text-muted)]" />
+                    <span className="text-sm text-[var(--color-text-muted)]">Experience</span>
+                  </div>
                   <span className="text-sm font-medium text-[var(--color-text-primary)]">
                     {profileData.investmentExperienceYears} years
                   </span>

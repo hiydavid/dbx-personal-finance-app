@@ -1,13 +1,14 @@
 
 import React from "react";
 import { Message } from "./Message";
-import { Message as MessageType } from "@/lib/types";
-import { Loader2 } from "lucide-react";
+import { Message as MessageType, FunctionCall } from "@/lib/types";
 import { useAgents } from "@/hooks/useAgents";
+import { ToolCallStatus } from "./ToolCallStatus";
 
 interface MessageListProps {
   messages: MessageType[];
   isLoading: boolean;
+  activeFunctionCalls?: FunctionCall[];
   onFeedback: (messageId: string, type: "positive" | "negative") => void;
   onViewTrace: (messageId: string) => void;
   selectedAgentId?: string;
@@ -17,6 +18,7 @@ interface MessageListProps {
 export function MessageList({
   messages,
   isLoading,
+  activeFunctionCalls,
   onFeedback,
   onViewTrace,
   selectedAgentId,
@@ -54,10 +56,10 @@ export function MessageList({
       ))}
 
       {isLoading && (
-        <div className="flex items-center gap-3 text-[var(--color-muted-foreground)]">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="text-sm">AI is thinking...</span>
-        </div>
+        <ToolCallStatus
+          functionCalls={activeFunctionCalls || []}
+          isProcessing={isLoading}
+        />
       )}
     </div>
   );
