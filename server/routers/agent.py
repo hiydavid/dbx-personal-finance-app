@@ -135,7 +135,9 @@ async def invoke_endpoint(request: Request, options: InvokeEndpointRequest):
     # Select handler based on deployment type
     deployment_type = agent.get('deployment_type', 'databricks')
     if deployment_type == 'fmapi':
-      handler = FMAPIHandler(agent, user_email=user_email, persona_id=options.persona_id)
+      handler = FMAPIHandler(
+        agent, user_email=user_email, persona_id=options.persona_id, chat_id=chat_id
+      )
     else:
       handler = DatabricksEndpointHandler(agent)
 
@@ -172,8 +174,14 @@ async def invoke_endpoint(request: Request, options: InvokeEndpointRequest):
             event_type = event.get('type', '')
 
             # Log event types for debugging trace_id extraction
-            if 'databricks_output' in str(event) or event_type in ['response.done', 'response.output_item.done']:
-              logger.debug(f'📦 Event type: {event_type}, has databricks_output: {"databricks_output" in event}')
+            if 'databricks_output' in str(event) or event_type in [
+              'response.done',
+              'response.output_item.done',
+            ]:
+              logger.debug(
+                f'📦 Event type: {event_type}, '
+                f'has databricks_output: {"databricks_output" in event}'
+              )
 
             # Check for databricks_output at event level (for response.done events)
             event_db_output = event.get('databricks_output', {})
@@ -218,7 +226,7 @@ async def invoke_endpoint(request: Request, options: InvokeEndpointRequest):
                     fc['output'] = _parse_json_field(item.get('output', {}))
                     break
 
-              # Extract trace_id from databricks_output inside item (present in final message)
+              # Extract trace_id from databricks_output inside item
               db_output = item.get('databricks_output', {})
               if db_output and not trace_id:
                 databricks_output = db_output
@@ -248,7 +256,10 @@ async def invoke_endpoint(request: Request, options: InvokeEndpointRequest):
         yield f'data: {json.dumps({"type": "error", "error": str(e)})}\n\n'
 
       # Log final extraction results for debugging
-      logger.info(f'🔍 Stream completed - trace_id: {trace_id}, has_databricks_output: {databricks_output is not None}')
+      logger.info(
+        f'🔍 Stream completed - trace_id: {trace_id}, '
+        f'has_databricks_output: {databricks_output is not None}'
+      )
 
       # After stream completes, save messages to storage
       try:
