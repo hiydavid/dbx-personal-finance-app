@@ -7,6 +7,8 @@ import os
 from datetime import date
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
+import mlflow
+from mlflow.entities import SpanType
 from openai import OpenAI
 
 from .base import BaseDeploymentHandler
@@ -96,11 +98,13 @@ class FMAPIHandler(BaseDeploymentHandler):
     agent_config: Dict[str, Any],
     user_email: str,
     persona_id: Optional[str] = None,
+    chat_id: Optional[str] = None,
   ):
     super().__init__(agent_config)
     self.endpoint_name = agent_config.get('endpoint_name')
     self.user_email = user_email
     self.persona_id = persona_id
+    self.chat_id = chat_id
 
     # Initialize OpenAI client with Databricks base URL
     databricks_host = os.environ.get('DATABRICKS_HOST', '').rstrip('/')
@@ -235,220 +239,269 @@ class FMAPIHandler(BaseDeploymentHandler):
 
   async def _execute_tool(self, tool_name: str, arguments: Dict) -> str:
     """Execute a tool and return the result as JSON string."""
-    try:
-      if tool_name == 'get_user_profile':
-        from server.db.dbsql import get_user_profile_from_dbsql, is_dbsql_configured
+    with mlflow.start_span(
+      name=f'tool_{tool_name}',
+      span_type=SpanType.TOOL,
+      attributes={
+        'tool_name': tool_name,
+        'arguments': json.dumps(arguments),
+      },
+    ) as span:
+      try:
+        result = await self._execute_tool_impl(tool_name, arguments)
+        span.set_attributes({'status': 'success', 'result_length': len(result)})
+        return result
+      except Exception as e:
+        span.set_status('ERROR', str(e))
+        logger.error(f'Tool execution error for {tool_name}: {e}')
+        return json.dumps({'error': str(e)})
 
-        if is_dbsql_configured():
-          profile = get_user_profile_from_dbsql(self.user_email)
+  async def _execute_tool_impl(self, tool_name: str, arguments: Dict) -> str:
+    """Internal implementation of tool execution."""
+    if tool_name == 'get_user_profile':
+      from server.db.dbsql import get_user_profile_from_dbsql, is_dbsql_configured
+
+      if is_dbsql_configured():
+        profile = get_user_profile_from_dbsql(self.user_email)
+        if profile:
+          return profile.model_dump_json(by_alias=True)
+        return json.dumps({
+          'message': 'No profile found. User has not set up their profile yet.'
+        })
+      else:
+        from sqlalchemy import select
+
+        from server.db import UserProfileModel, session_scope
+
+        async with session_scope() as session:
+          result = await session.execute(
+            select(UserProfileModel).where(UserProfileModel.user_email == self.user_email)
+          )
+          profile = result.scalar_one_or_none()
           if profile:
-            return profile.model_dump_json(by_alias=True)
+            return json.dumps({
+              'age': _calculate_age(profile.date_of_birth),
+              'dateOfBirth': str(profile.date_of_birth) if profile.date_of_birth else None,
+              'maritalStatus': profile.marital_status,
+              'numberOfDependents': profile.number_of_dependents,
+              'employmentStatus': profile.employment_status,
+              'employerName': profile.employer_name,
+              'jobTitle': profile.job_title,
+              'yearsEmployed': profile.years_employed,
+              'annualIncome': profile.annual_income,
+              'riskTolerance': profile.risk_tolerance,
+              'taxFilingStatus': profile.tax_filing_status,
+              'financialGoals': profile.financial_goals,
+              'investmentExperienceYears': profile.investment_experience_years,
+              'retirementAgeTarget': profile.retirement_age_target,
+              'notes': profile.notes,
+            })
           return json.dumps({
             'message': 'No profile found. User has not set up their profile yet.'
           })
-        else:
-          from sqlalchemy import select
 
-          from server.db import UserProfileModel, session_scope
+    elif tool_name == 'get_financial_summary':
+      from server.db.dbsql import get_financial_summary_from_dbsql, is_dbsql_configured
 
-          async with session_scope() as session:
-            result = await session.execute(
-              select(UserProfileModel).where(UserProfileModel.user_email == self.user_email)
-            )
-            profile = result.scalar_one_or_none()
-            if profile:
-              return json.dumps({
-                'age': _calculate_age(profile.date_of_birth),
-                'dateOfBirth': str(profile.date_of_birth) if profile.date_of_birth else None,
-                'maritalStatus': profile.marital_status,
-                'numberOfDependents': profile.number_of_dependents,
-                'employmentStatus': profile.employment_status,
-                'employerName': profile.employer_name,
-                'jobTitle': profile.job_title,
-                'yearsEmployed': profile.years_employed,
-                'annualIncome': profile.annual_income,
-                'riskTolerance': profile.risk_tolerance,
-                'taxFilingStatus': profile.tax_filing_status,
-                'financialGoals': profile.financial_goals,
-                'investmentExperienceYears': profile.investment_experience_years,
-                'retirementAgeTarget': profile.retirement_age_target,
-                'notes': profile.notes,
-              })
-            return json.dumps({
-              'message': 'No profile found. User has not set up their profile yet.'
-            })
-
-      elif tool_name == 'get_financial_summary':
-        from server.db.dbsql import get_financial_summary_from_dbsql, is_dbsql_configured
-
-        if is_dbsql_configured():
-          summary = get_financial_summary_from_dbsql(self.user_email)
-        else:
-          from server.data.sample_finance import get_financial_summary
-
-          summary = get_financial_summary()
-        return summary.model_dump_json()
-
-      elif tool_name == 'get_transactions':
-        from server.db.dbsql import get_transactions_from_dbsql, is_dbsql_configured
-
-        days = arguments.get('days', 30)
-        if is_dbsql_configured():
-          data = get_transactions_from_dbsql(self.user_email, days=days)
-        else:
-          from server.data.sample_transactions import get_transactions_data
-
-          data = get_transactions_data(days=days)
-        return data.model_dump_json()
-
+      if is_dbsql_configured():
+        summary = get_financial_summary_from_dbsql(self.user_email)
       else:
-        return json.dumps({'error': f'Unknown tool: {tool_name}'})
+        from server.data.sample_finance import get_financial_summary
 
-    except Exception as e:
-      logger.error(f'Tool execution error for {tool_name}: {e}')
-      return json.dumps({'error': str(e)})
+        summary = get_financial_summary()
+      return summary.model_dump_json()
+
+    elif tool_name == 'get_transactions':
+      from server.db.dbsql import get_transactions_from_dbsql, is_dbsql_configured
+
+      days = arguments.get('days', 30)
+      if is_dbsql_configured():
+        data = get_transactions_from_dbsql(self.user_email, days=days)
+      else:
+        from server.data.sample_transactions import get_transactions_data
+
+        data = get_transactions_data(days=days)
+      return data.model_dump_json()
+
+    else:
+      return json.dumps({'error': f'Unknown tool: {tool_name}'})
 
   async def predict_stream(
     self, messages: List[Dict[str, str]], endpoint_name: str
   ) -> AsyncGenerator[str, None]:
     """Stream response with tool calling loop."""
-    # Fetch profile for system prompt
-    logger.info(f'📋 Fetching profile for user: {self.user_email}')
-    profile_data = await self._fetch_profile_data()
-    logger.info(f'📋 Profile data found: {profile_data is not None}')
-    if profile_data:
-      logger.info(f'📋 Profile keys: {list(profile_data.keys())}')
+    # Extract user message for trace inputs
+    user_message = messages[-1].get('content', '') if messages else ''
 
-    system_prompt = self._build_system_prompt(profile_data)
-    logger.info(f'📋 System prompt length: {len(system_prompt)} chars')
-    logger.debug(f'📋 System prompt: {system_prompt[:500]}...')
-
-    # Build messages with system prompt
-    llm_messages: List[Dict[str, Any]] = [{'role': 'system', 'content': system_prompt}]
-    llm_messages.extend(messages)
-
-    max_iterations = 10  # Prevent infinite loops
-    iteration = 0
-
-    while iteration < max_iterations:
-      iteration += 1
-      logger.info(f'🔄 Tool calling iteration {iteration}')
-
-      try:
-        # Call LLM (non-streaming to detect tool calls)
-        response = await asyncio.to_thread(
-          self.client.chat.completions.create,
-          model=endpoint_name,
-          messages=llm_messages,
-          tools=FINANCE_TOOLS,
+    # Create span for the entire handler operation
+    with mlflow.start_span(
+      name='fmapi_handler',
+      span_type=SpanType.AGENT,
+      attributes={
+        'endpoint_name': endpoint_name,
+        'user_email': self.user_email,
+        'persona_id': self.persona_id or 'default',
+        'message_count': len(messages),
+      },
+    ) as handler_span:
+      # Set inputs for Request column in MLflow UI
+      handler_span.set_inputs({'user_message': user_message})
+      # Add session metadata to group traces by chat/user
+      if self.chat_id:
+        mlflow.update_current_trace(
+          metadata={
+            'mlflow.trace.session': self.chat_id,
+            'mlflow.trace.user': self.user_email,
+          }
         )
 
-        choice = response.choices[0]
-        message = choice.message
+      # Track final response for outputs
+      final_response_content = ''
 
-        # Check if LLM wants to call tools
-        if message.tool_calls:
-          logger.info(f'🔧 LLM requested {len(message.tool_calls)} tool call(s)')
+      # Fetch profile for system prompt
+      logger.info(f'📋 Fetching profile for user: {self.user_email}')
+      profile_data = await self._fetch_profile_data()
+      logger.info(f'📋 Profile data found: {profile_data is not None}')
+      if profile_data:
+        logger.info(f'📋 Profile keys: {list(profile_data.keys())}')
 
-          # Emit tool call events for frontend
-          for tool_call in message.tool_calls:
-            event = {
-              'type': 'response.output_item.done',
-              'item': {
-                'type': 'function_call',
-                'call_id': tool_call.id,
-                'name': tool_call.function.name,
-                'arguments': tool_call.function.arguments,
-              },
-            }
-            yield f'data: {json.dumps(event)}\n\n'
+      system_prompt = self._build_system_prompt(profile_data)
+      logger.info(f'📋 System prompt length: {len(system_prompt)} chars')
+      logger.debug(f'📋 System prompt: {system_prompt[:500]}...')
 
-          # Add assistant message with tool calls to history
-          # Note: content must be None (not empty string) when there's no text,
-          # otherwise FMAPI rejects with "text content blocks must be non-empty"
-          assistant_msg: Dict[str, Any] = {
-            'role': 'assistant',
-            'content': message.content,  # None is valid, empty string is not
-            'tool_calls': [
-              {
-                'id': tc.id,
-                'type': 'function',
-                'function': {
-                  'name': tc.function.name,
-                  'arguments': tc.function.arguments,
+      # Build messages with system prompt
+      llm_messages: List[Dict[str, Any]] = [{'role': 'system', 'content': system_prompt}]
+      llm_messages.extend(messages)
+
+      max_iterations = 10  # Prevent infinite loops
+      iteration = 0
+
+      while iteration < max_iterations:
+        iteration += 1
+        logger.info(f'🔄 Tool calling iteration {iteration}')
+
+        try:
+          # Call LLM (non-streaming to detect tool calls)
+          response = await asyncio.to_thread(
+            self.client.chat.completions.create,
+            model=endpoint_name,
+            messages=llm_messages,
+            tools=FINANCE_TOOLS,
+          )
+
+          choice = response.choices[0]
+          message = choice.message
+
+          # Check if LLM wants to call tools
+          if message.tool_calls:
+            logger.info(f'🔧 LLM requested {len(message.tool_calls)} tool call(s)')
+
+            # Emit tool call events for frontend
+            for tool_call in message.tool_calls:
+              event = {
+                'type': 'response.output_item.done',
+                'item': {
+                  'type': 'function_call',
+                  'call_id': tool_call.id,
+                  'name': tool_call.function.name,
+                  'arguments': tool_call.function.arguments,
                 },
               }
-              for tc in message.tool_calls
-            ],
-          }
-          llm_messages.append(assistant_msg)
-          tc_count = len(message.tool_calls)
-          logger.info(f'📝 Assistant msg: content={message.content!r}, tool_calls={tc_count}')
+              yield f'data: {json.dumps(event)}\n\n'
 
-          # Execute each tool
-          for tool_call in message.tool_calls:
-            args = json.loads(tool_call.function.arguments or '{}')
-            logger.info(f'🔧 Executing tool: {tool_call.function.name}')
-            result = await self._execute_tool(tool_call.function.name, args)
-
-            # Emit tool output event
-            output_event = {
-              'type': 'response.output_item.done',
-              'item': {
-                'type': 'function_call_output',
-                'call_id': tool_call.id,
-                'output': result,
-              },
+            # Add assistant message with tool calls to history
+            # Note: content must be None (not empty string) when there's no text,
+            # otherwise FMAPI rejects with "text content blocks must be non-empty"
+            assistant_msg: Dict[str, Any] = {
+              'role': 'assistant',
+              'content': message.content,  # None is valid, empty string is not
+              'tool_calls': [
+                {
+                  'id': tc.id,
+                  'type': 'function',
+                  'function': {
+                    'name': tc.function.name,
+                    'arguments': tc.function.arguments,
+                  },
+                }
+                for tc in message.tool_calls
+              ],
             }
-            yield f'data: {json.dumps(output_event)}\n\n'
+            llm_messages.append(assistant_msg)
+            tc_count = len(message.tool_calls)
+            logger.info(f'📝 Assistant msg: content={message.content!r}, tool_calls={tc_count}')
 
-            # Add tool result to messages
-            # Include 'name' field as some APIs require it
-            tool_result_msg = {
-              'role': 'tool',
-              'tool_call_id': tool_call.id,
-              'name': tool_call.function.name,
-              'content': result,
-            }
-            llm_messages.append(tool_result_msg)
-            logger.info(f'📝 Tool result: id={tool_call.id}, name={tool_call.function.name}')
+            # Execute each tool
+            for tool_call in message.tool_calls:
+              args = json.loads(tool_call.function.arguments or '{}')
+              logger.info(f'🔧 Executing tool: {tool_call.function.name}')
+              result = await self._execute_tool(tool_call.function.name, args)
 
-          # Log message array before next iteration
-          logger.info(f'📝 Messages before iteration {iteration + 1}: {len(llm_messages)} messages')
-          for i, msg in enumerate(llm_messages):
-            role = msg.get('role')
-            has_tool_calls = 'tool_calls' in msg
-            tool_call_id = msg.get('tool_call_id', '')
-            logger.info(f'  [{i}] role={role}, tool_calls={has_tool_calls}, tc_id={tool_call_id}')
+              # Emit tool output event
+              output_event = {
+                'type': 'response.output_item.done',
+                'item': {
+                  'type': 'function_call_output',
+                  'call_id': tool_call.id,
+                  'output': result,
+                },
+              }
+              yield f'data: {json.dumps(output_event)}\n\n'
 
-          # Continue loop - LLM will process tool results
-          continue
+              # Add tool result to messages
+              # Include 'name' field as some APIs require it
+              tool_result_msg = {
+                'role': 'tool',
+                'tool_call_id': tool_call.id,
+                'name': tool_call.function.name,
+                'content': result,
+              }
+              llm_messages.append(tool_result_msg)
+              logger.info(f'📝 Tool result: id={tool_call.id}, name={tool_call.function.name}')
 
-        # No tool calls - stream the final response
-        logger.info('💬 Streaming final response')
+            # Log message array before next iteration
+            logger.info(f'📝 Messages before iteration {iteration + 1}: {len(llm_messages)} messages')
+            for i, msg in enumerate(llm_messages):
+              role = msg.get('role')
+              has_tool_calls = 'tool_calls' in msg
+              tool_call_id = msg.get('tool_call_id', '')
+              logger.info(f'  [{i}] role={role}, tool_calls={has_tool_calls}, tc_id={tool_call_id}')
 
-        # If we already have content from the non-streaming call, emit it
-        if message.content:
-          # For simplicity, emit the content in chunks
-          content = message.content
-          chunk_size = 20  # Characters per chunk for typing effect
-          for i in range(0, len(content), chunk_size):
-            chunk = content[i : i + chunk_size]
-            event = {
-              'type': 'response.output_text.delta',
-              'delta': chunk,
-            }
-            yield f'data: {json.dumps(event)}\n\n'
-            # Small delay for typing effect
-            await asyncio.sleep(0.02)
+            # Continue loop - LLM will process tool results
+            continue
 
-        # Done
-        break
+          # No tool calls - stream the final response
+          logger.info('💬 Streaming final response')
 
-      except Exception as e:
-        logger.error(f'Error in FMAPI handler: {e}')
-        error_event = {'type': 'error', 'error': str(e)}
-        yield f'data: {json.dumps(error_event)}\n\n'
-        break
+          # If we already have content from the non-streaming call, emit it
+          if message.content:
+            # Capture for span outputs
+            final_response_content = message.content
 
-    yield 'data: [DONE]\n\n'
+            # For simplicity, emit the content in chunks
+            content = message.content
+            chunk_size = 20  # Characters per chunk for typing effect
+            for i in range(0, len(content), chunk_size):
+              chunk = content[i : i + chunk_size]
+              event = {
+                'type': 'response.output_text.delta',
+                'delta': chunk,
+              }
+              yield f'data: {json.dumps(event)}\n\n'
+              # Small delay for typing effect
+              await asyncio.sleep(0.02)
+
+          # Done
+          break
+
+        except Exception as e:
+          logger.error(f'Error in FMAPI handler: {e}')
+          error_event = {'type': 'error', 'error': str(e)}
+          yield f'data: {json.dumps(error_event)}\n\n'
+          final_response_content = f'Error: {e}'
+          break
+
+      # Set span outputs (Response column in MLflow UI)
+      handler_span.set_outputs({'response': final_response_content})
+
+      yield 'data: [DONE]\n\n'
