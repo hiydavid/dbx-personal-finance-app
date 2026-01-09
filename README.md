@@ -173,23 +173,46 @@ curl http://localhost:8000/api/finance/summary
 
 ## Deploying to Databricks Apps
 
-### 1. Build the frontend
+### 1. Configure Environment Variables
 
-```bash
-cd client && npm run build && cd ..
+Edit `app.yaml` with your DBSQL configuration:
+
+```yaml
+env:
+  - name: ENV
+    value: production
+  - name: DBSQL_SCHEMA
+    value: "your_catalog.your_schema"
+  - name: DATABRICKS_SERVER_HOSTNAME
+    value: "your-workspace.cloud.databricks.com"
+  - name: DATABRICKS_HTTP_PATH
+    value: "/sql/1.0/warehouses/your_warehouse_id"
 ```
 
-### 2. Deploy using Databricks CLI
+### 2. Configure Deployment Settings
+
+Create/update `.env.local` with deployment settings:
+
+```bash
+DATABRICKS_HOST=https://your-workspace.cloud.databricks.com
+DATABRICKS_APP_NAME=personal-finance-app
+WORKSPACE_SOURCE_PATH=/Workspace/Users/your-email/personal-finance-app
+DATABRICKS_CONFIG_PROFILE=your-profile  # CLI profile name
+```
+
+### 3. Deploy
 
 ```bash
 ./scripts/deploy.sh
 ```
 
-Or manually:
+This will:
+1. Build the frontend (`client/out/`)
+2. Sync code to your Databricks workspace
+3. Upload the build folder (gitignored, uploaded separately)
+4. Deploy the app
 
-```bash
-databricks apps deploy . --app-name personal-finance
-```
+> **Note:** If the CLI deploy fails, the script will show instructions to deploy manually via the Databricks UI (Compute → Apps).
 
 ## Development
 

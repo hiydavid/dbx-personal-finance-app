@@ -80,21 +80,32 @@ echo ""
 # Sync code to workspace
 echo "📤 Syncing code to workspace..."
 databricks sync . "$WORKSPACE_SOURCE_PATH" \
-  --exclude-from .databricksignore \
-  --include "client/out/**" \
   --full \
+  --profile "$DATABRICKS_CONFIG_PROFILE"
+
+# Upload build folder separately (it's gitignored, so sync skips it)
+echo ""
+echo "📤 Uploading frontend build (gitignored, requires separate upload)..."
+databricks workspace import-dir client/out "$WORKSPACE_SOURCE_PATH/client/out" \
+  --overwrite \
   --profile "$DATABRICKS_CONFIG_PROFILE"
 
 # Deploy app
 echo ""
 echo "🎯 Deploying app: $DATABRICKS_APP_NAME..."
-databricks apps deploy $DATABRICKS_APP_NAME \
-  --source-code-path "$WORKSPACE_SOURCE_PATH" \
-  --profile "$DATABRICKS_CONFIG_PROFILE"
+if ! databricks apps deploy "$DATABRICKS_APP_NAME" "$WORKSPACE_SOURCE_PATH" \
+  --profile "$DATABRICKS_CONFIG_PROFILE" 2>/dev/null; then
+  echo ""
+  echo "⚠️  CLI deploy failed (known issue with some workspaces)"
+  echo "   Please deploy manually via Databricks UI:"
+  echo "   1. Go to Compute → Apps"
+  echo "   2. Click '$DATABRICKS_APP_NAME'"
+  echo "   3. Click 'Redeploy' with source: $WORKSPACE_SOURCE_PATH"
+fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "✅ Deployment Complete"
+echo "✅ Code Sync Complete"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 

@@ -38,9 +38,11 @@ async def get_agents():
     agent_configs = agents_data.get('agents', [])
     logger.info(f'Found {len(agent_configs)} agent endpoints in configuration')
 
-    service = get_agent_bricks_service()
+    # Lazy-load service only when needed (avoids auth conflicts for non-MAS endpoints)
+    service = None
 
     async def fetch_agent(agent_config):
+      nonlocal service
       """Fetch or build agent details based on config type."""
       # Handle both string format (legacy) and object format
       if isinstance(agent_config, str):
@@ -56,6 +58,8 @@ async def get_agents():
 
         if is_mas_endpoint(endpoint_name) and not has_manual_tools:
           # Fetch full details from Agent Bricks API for MAS endpoints
+          if service is None:
+            service = get_agent_bricks_service()
           agent_details = await service.async_get_agent_details_from_endpoint(endpoint_name)
           logger.info(f'Loaded MAS agent details for {endpoint_name}')
           return agent_details

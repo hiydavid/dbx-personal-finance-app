@@ -208,6 +208,12 @@ export function ChatCore({
   const sendMessage = async (content: string) => {
     if (!content.trim()) return;
 
+    // Validate agent is selected before sending
+    if (!selectedAgentId) {
+      toast.error("No agent selected. Please wait for agents to load.");
+      return;
+    }
+
     devLog("Sending message:", content);
 
     const abortController = new AbortController();
@@ -564,7 +570,7 @@ export function ChatCore({
       >
         <ChatInput
           onSendMessage={sendMessage}
-          disabled={isLoading}
+          disabled={isLoading || !selectedAgentId}
           selectedAgentId={selectedAgentId}
           onAgentChange={onAgentChange}
           selectedPersonaId={selectedPersonaId}

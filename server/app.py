@@ -6,7 +6,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
@@ -99,7 +100,18 @@ app.include_router(news.router, prefix=API_PREFIX, tags=['news'])
 build_path = Path('.') / 'client/out'
 if build_path.exists():
   logger.info(f'Serving static files from {build_path}')
-  app.mount('/', StaticFiles(directory=str(build_path), html=True), name='static')
+  # Mount static files for assets (JS, CSS, images, etc.)
+  app.mount('/assets', StaticFiles(directory=str(build_path / 'assets')), name='assets')
+  app.mount('/images', StaticFiles(directory=str(build_path / 'images')), name='images')
+  app.mount('/logos', StaticFiles(directory=str(build_path / 'logos')), name='logos')
+  app.mount('/videos', StaticFiles(directory=str(build_path / 'videos')), name='videos')
+
+  # SPA catch-all: serve index.html for all non-API routes
+  # This enables client-side routing (React Router)
+  @app.get('/{full_path:path}')
+  async def serve_spa(request: Request, full_path: str):
+    # Serve index.html for all routes - React Router handles client-side routing
+    return FileResponse(build_path / 'index.html')
 else:
   logger.warning(
     f'Build directory {build_path} not found. '
