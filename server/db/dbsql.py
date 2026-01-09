@@ -45,13 +45,14 @@ def is_dbsql_configured() -> bool:
   """Check if Databricks SQL is fully configured.
 
   Returns:
-      True if all required DBSQL environment variables are set
+      True if all required DBSQL environment variables are set.
+      DATABRICKS_TOKEN is optional - if not set, uses Databricks SDK default auth
+      (which works automatically in Databricks Apps with service principal).
   """
   required_vars = [
     'DBSQL_SCHEMA',
     'DATABRICKS_SERVER_HOSTNAME',
     'DATABRICKS_HTTP_PATH',
-    'DATABRICKS_TOKEN',
   ]
   return all(os.environ.get(var) for var in required_vars)
 
@@ -74,6 +75,9 @@ def get_schema() -> str:
 def get_connection():
   """Get or create a Databricks SQL connection.
 
+  Uses DATABRICKS_TOKEN if set, otherwise falls back to Databricks SDK default auth
+  (which works automatically in Databricks Apps with service principal).
+
   Returns:
       databricks.sql connection object
 
@@ -93,8 +97,26 @@ def get_connection():
     raise ValueError('DATABRICKS_SERVER_HOSTNAME environment variable is not set')
   if not http_path:
     raise ValueError('DATABRICKS_HTTP_PATH environment variable is not set')
+
   if not access_token:
-    raise ValueError('DATABRICKS_TOKEN environment variable is not set')
+    # Get token from Databricks SDK (works in Databricks Apps with service principal)
+    try:
+      from databricks.sdk import WorkspaceClient
+
+      # Log available env vars for debugging (redacted)
+      logger.info(f'DATABRICKS_HOST set: {bool(os.environ.get("DATABRICKS_HOST"))}')
+      logger.info(f'DATABRICKS_CLIENT_ID set: {bool(os.environ.get("DATABRICKS_CLIENT_ID"))}')
+      logger.info(f'DATABRICKS_CLIENT_SECRET set: {bool(os.environ.get("DATABRICKS_CLIENT_SECRET"))}')
+
+      w = WorkspaceClient()
+      access_token = w.config.token
+      logger.info('Using Databricks SDK for authentication')
+    except Exception as e:
+      logger.error(f'Failed to get token from Databricks SDK: {e}')
+      raise ValueError(
+        'DATABRICKS_TOKEN not set and could not authenticate via Databricks SDK. '
+        'Ensure DATABRICKS_HOST is set and service principal is configured.'
+      )
 
   _connection = dbsql.connect(
     server_hostname=server_hostname,
