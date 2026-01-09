@@ -130,6 +130,16 @@ export function ChatCore({
     }
   }, [chatId, currentSessionId]);
 
+  // Load chat history on mount if chatId is provided
+  // This handles the case where component remounts with the same chatId
+  useEffect(() => {
+    if (chatId && messages.length === 0 && !isLoading) {
+      devLog("Mount: Loading chat history for:", chatId);
+      loadChatHistory(chatId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     scrollToBottom();
