@@ -57,9 +57,6 @@ def generate_server_requirements():
       content = f.read()
     dependencies = parse_dependencies_manual(content)
 
-  # Extract dependencies
-  dependencies = pyproject.get('project', {}).get('dependencies', [])
-
   # Generate requirements.txt content
   requirements_content = [
     '# Auto-generated from pyproject.toml with semantic versioning ranges',
