@@ -25,3 +25,4 @@ asyncpg>=0.30.0
 greenlet>=3.0.0
 psycopg2-binary>=2.9.11
 databricks-sql-connector>=3.0.0
+databricks-mcp>=0.1.0

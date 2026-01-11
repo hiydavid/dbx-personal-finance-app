@@ -5,13 +5,19 @@ import json
 import logging
 import os
 from datetime import date
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional, Set
 
 import mlflow
 from mlflow.entities import SpanType
 from openai import OpenAI
 
 from .base import BaseDeploymentHandler
+from server.services.mcp_client import (
+  MCPClientService,
+  convert_mcp_tool_to_openai_format,
+  get_mcp_connections_from_config,
+  get_mcp_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +112,11 @@ class FMAPIHandler(BaseDeploymentHandler):
     self.persona_id = persona_id
     self.chat_id = chat_id
 
+    # MCP configuration
+    self.mcp_connections = get_mcp_connections_from_config(agent_config)
+    self._mcp_tools: List[Dict[str, Any]] = []
+    self._mcp_tool_names: Set[str] = set()
+
     # Initialize OpenAI client with Databricks base URL
     databricks_host = os.environ.get('DATABRICKS_HOST', '').rstrip('/')
     databricks_token = os.environ.get('DATABRICKS_TOKEN', '')
@@ -163,6 +174,79 @@ class FMAPIHandler(BaseDeploymentHandler):
       return persona.get('system_prompt')
     return None
 
+  async def _discover_mcp_tools(self) -> List[Dict[str, Any]]:
+    """Discover and convert MCP tools to OpenAI format.
+
+    Returns:
+        List of tool definitions in OpenAI function format
+    """
+    all_mcp_tools = []
+
+    for connection_name in self.mcp_connections:
+      try:
+        service = get_mcp_service(connection_name)
+        mcp_tools = await service.list_tools()
+
+        for tool in mcp_tools:
+          openai_tool = convert_mcp_tool_to_openai_format(tool)
+          tool_name = openai_tool['function']['name']
+          self._mcp_tool_names.add(tool_name)
+          all_mcp_tools.append(openai_tool)
+
+        logger.info(f'Loaded {len(mcp_tools)} tools from MCP connection: {connection_name}')
+      except Exception as e:
+        logger.error(f'Failed to load MCP tools from {connection_name}: {e}')
+
+    self._mcp_tools = all_mcp_tools
+    return all_mcp_tools
+
+  def _get_all_tools(self) -> List[Dict[str, Any]]:
+    """Get combined list of local finance tools and MCP tools."""
+    return FINANCE_TOOLS + self._mcp_tools
+
+  def _get_mcp_tools_description(self) -> str:
+    """Get description of MCP tools for the system prompt."""
+    if not self._mcp_tools:
+      return ''
+
+    lines = ['\n\nExternal tools (web search, market data):']
+    for tool in self._mcp_tools:
+      name = tool['function']['name']
+      desc = tool['function'].get('description', 'External tool')
+      lines.append(f'- {name}: {desc}')
+
+    return '\n'.join(lines)
+
+  async def _execute_mcp_tool(self, tool_name: str, arguments: Dict) -> str:
+    """Execute an MCP tool.
+
+    Args:
+        tool_name: Name of the MCP tool
+        arguments: Tool arguments
+
+    Returns:
+        JSON string with tool result
+    """
+    for connection_name in self.mcp_connections:
+      try:
+        service = get_mcp_service(connection_name)
+        result = await service.call_tool(tool_name, arguments)
+
+        if isinstance(result, str):
+          try:
+            json.loads(result)
+            return result
+          except json.JSONDecodeError:
+            return json.dumps({'result': result})
+        else:
+          return json.dumps(result, default=str)
+
+      except Exception as e:
+        logger.warning(f'Tool {tool_name} failed in {connection_name}: {e}')
+        continue
+
+    return json.dumps({'error': f'MCP tool not found or failed: {tool_name}'})
+
   def _build_system_prompt(self, profile_data: Optional[Dict]) -> str:
     """Build system prompt with user context and optional persona."""
     # Check for persona-specific prompt
@@ -185,6 +269,7 @@ class FMAPIHandler(BaseDeploymentHandler):
         '- get_user_profile: Get user demographics, employment, income, and financial goals\n'
         '- get_financial_summary: Get net worth, assets, and liabilities breakdown\n'
         '- get_transactions: Get recent transaction history and cashflow patterns'
+        + self._get_mcp_tools_description()
       )
     else:
       # Default generic finance assistant prompt
@@ -201,6 +286,7 @@ class FMAPIHandler(BaseDeploymentHandler):
         '- get_user_profile: Get user demographics, employment, income, and financial goals\n'
         '- get_financial_summary: Get net worth, assets, and liabilities breakdown\n'
         '- get_transactions: Get recent transaction history and cashflow patterns'
+        + self._get_mcp_tools_description()
       )
 
     if profile_data:
@@ -239,12 +325,14 @@ class FMAPIHandler(BaseDeploymentHandler):
 
   async def _execute_tool(self, tool_name: str, arguments: Dict) -> str:
     """Execute a tool and return the result as JSON string."""
+    is_mcp = tool_name in self._mcp_tool_names
     with mlflow.start_span(
       name=f'tool_{tool_name}',
       span_type=SpanType.TOOL,
       attributes={
         'tool_name': tool_name,
         'arguments': json.dumps(arguments),
+        'is_mcp_tool': is_mcp,
       },
     ) as span:
       try:
@@ -258,6 +346,10 @@ class FMAPIHandler(BaseDeploymentHandler):
 
   async def _execute_tool_impl(self, tool_name: str, arguments: Dict) -> str:
     """Internal implementation of tool execution."""
+    # Check if this is an MCP tool first
+    if tool_name in self._mcp_tool_names:
+      return await self._execute_mcp_tool(tool_name, arguments)
+
     if tool_name == 'get_user_profile':
       from server.db.dbsql import get_user_profile_from_dbsql, is_dbsql_configured
 
@@ -358,6 +450,12 @@ class FMAPIHandler(BaseDeploymentHandler):
       # Track final response for outputs
       final_response_content = ''
 
+      # Discover MCP tools if configured
+      if self.mcp_connections:
+        await self._discover_mcp_tools()
+        if self._mcp_tool_names:
+          logger.info(f'🔌 MCP tools available: {list(self._mcp_tool_names)}')
+
       # Fetch profile for system prompt
       logger.info(f'📋 Fetching profile for user: {self.user_email}')
       profile_data = await self._fetch_profile_data()
@@ -382,11 +480,12 @@ class FMAPIHandler(BaseDeploymentHandler):
 
         try:
           # Call LLM (non-streaming to detect tool calls)
+          all_tools = self._get_all_tools()
           response = await asyncio.to_thread(
             self.client.chat.completions.create,
             model=endpoint_name,
             messages=llm_messages,
-            tools=FINANCE_TOOLS,
+            tools=all_tools,
           )
 
           choice = response.choices[0]
