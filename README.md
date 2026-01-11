@@ -2,6 +2,181 @@
 
 A personal finance app built on the Databricks GenAI App Template. Track your assets, liabilities, and net worth at a glance with AI-powered financial analysis.
 
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                      FRONTEND                                           │
+│  ┌───────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                           React + TypeScript + Vite                               │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐               │  │
+│  │  │  Dashboard  │  │   Chat UI   │  │  Cashflow   │  │  Profile    │  ...Pages     │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘               │  │
+│  │         │                │                │                │                      │  │
+│  │  ┌──────┴────────────────┴────────────────┴────────────────┴──────────────────┐   │  │
+│  │  │                         React Contexts (State)                             │   │  │
+│  │  │  UserContext │ AgentsContext │ PersonasContext │ NavigationContext │ ...   │   │  │
+│  │  └────────────────────────────────────┬───────────────────────────────────────┘   │  │
+│  └───────────────────────────────────────│───────────────────────────────────────────┘  │
+│                                          │ HTTP/SSE                                     │
+└──────────────────────────────────────────│──────────────────────────────────────────────┘
+                                           │
+┌──────────────────────────────────────────│──────────────────────────────────────────────┐
+│                                      BACKEND                                            │
+│  ┌───────────────────────────────────────│───────────────────────────────────────────┐  │
+│  │                           FastAPI + Uvicorn                                       │  │
+│  │  ┌────────────────────────────────────┴────────────────────────────────────────┐  │  │
+│  │  │                              API Routers                                    │  │  │
+│  │  │     /api/invoke_endpoint  │  /api/finance/*  │  /api/profile  │  ...        │  │  │
+│  │  └───────────────┬───────────────────────┬────────────────────────────────────────┘  │
+│  │                  │                       │                                           │
+│  │  ┌───────┴───────┐             ┌───────┴───────┐                                  │  │
+│  │  │    Agent      │             │   Finance     │                                  │  │
+│  │  │   Handlers    │             │   Service     │                                  │  │
+│  │  │ ┌───────────┐ │             │               │                                  │  │
+│  │  │ │  FMAPI    │ │             │  DBSQL or     │                                  │  │
+│  │  │ │  Handler  │ │             │  Sample Data  │                                  │  │
+│  │  │ └─────┬─────┘ │             └───────┬───────┘                                  │  │
+│  │  │       │       │                     │                                          │  │
+│  │  │ ┌─────┴─────┐ │                     │                                          │  │
+│  │  │ │    MCP    │ │                     │                                          │  │
+│  │  │ │   Client  │ │                     │                                          │  │
+│  │  │ └───────────┘ │                     │                                          │  │
+│  │  └───────────────┘                     │                                          │  │
+│  └───────────────────────────────────────────────────────────────────────────────────┘  │
+└─────────────┬─────────────────────┬─────────────────────────────────────────────────────┘
+              │                     │
+              ▼                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                              DATABRICKS PLATFORM                                        │
+│  ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐                    │
+│  │   Foundation      │  │   SQL Warehouse   │  │      MLflow       │                    │
+│  │   Model API       │  │      (DBSQL)      │  │                   │                    │
+│  │  ┌─────────────┐  │  │  ┌─────────────┐  │  │  ┌─────────────┐  │                    │
+│  │  │Claude/GPT-4 │  │  │  │Unity Catalog│  │  │  │   Tracing   │  │                    │
+│  │  │ Endpoints   │  │  │  │   Tables    │  │  │  │  Feedback   │  │                    │
+│  │  └─────────────┘  │  │  │ - assets    │  │  │  │ Experiments │  │                    │
+│  └───────────────────┘  │  │ - liabilit. │  │  │  └─────────────┘  │                    │
+│                         │  │ - transact. │  │  └───────────────────┘                    │
+│  ┌───────────────────┐  │  │ - profiles  │  │                                           │
+│  │   External MCP    │  │  └─────────────┘  │                                           │
+│  │    Connections    │  └───────────────────┘                                           │
+│  │  ┌─────────────┐  │                                                                  │
+│  │  │  you.com    │  │                                                                  │
+│  │  │ Web Search  │  │                                                                  │
+│  │  └─────────────┘  │                                                                  │
+│  └───────────────────┘                                                                  │
+│                                                                                         │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                              EXTERNAL SERVICES                                          │
+│  ┌───────────────────┐                                                                  │
+│  │      NewsAPI      │  Financial news from Bloomberg, Reuters, WSJ, CNBC, FT           │
+│  └───────────────────┘                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Component Details
+
+#### Frontend (React + Vite)
+| Component | Description |
+|-----------|-------------|
+| **Pages** | Dashboard, Chat, Cashflow, Net Worth, Investments, Profile |
+| **Contexts** | UserContext (auth), AgentsContext, PersonasContext, NavigationContext |
+| **Chat Engine** | SSE streaming, tool call visualization, MLflow trace links |
+| **Styling** | Tailwind CSS + shadcn/ui components |
+
+#### Backend (FastAPI)
+| Component | Description |
+|-----------|-------------|
+| **Agent Router** | `/api/invoke_endpoint` - SSE streaming with tool calling |
+| **Finance Router** | `/api/finance/*` - Assets, liabilities, transactions, investments |
+| **Profile Router** | `/api/profile` - User profile management |
+| **FMAPI Handler** | OpenAI-compatible client for Databricks model endpoints |
+| **MCP Client** | External tool integration (web search via you.com) |
+
+#### Databricks Services
+| Service | Purpose |
+|---------|---------|
+| **FMAPI** | LLM inference (Claude, GPT-4) with tool calling |
+| **SQL Warehouse** | Financial data storage in Unity Catalog |
+| **MLflow** | Tracing, feedback logging, observability |
+| **MCP Proxy** | External tool connections (web search, market data) |
+
+### Data Flow
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                              CHAT INTERACTION FLOW                                   │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+
+User Message                    Agent Processing                     Response Stream
+     │                                │                                    │
+     ▼                                ▼                                    ▼
+┌─────────┐    POST /invoke     ┌───────────┐    Tool Calls      ┌─────────────┐
+│  Chat   │ ─────────────────▶  │  FMAPI    │ ◀───────────────▶  │  Finance    │
+│  Input  │    endpoint         │  Handler  │                    │   Tools     │
+└─────────┘                     └─────┬─────┘                    └─────────────┘
+                                      │                                 │
+                                      │ MCP Call                        │ get_user_profile
+                                      ▼                                 │ get_financial_summary
+                                ┌───────────┐                           │ get_transactions
+                                │  you.com  │                           ▼
+                                │   Search  │                    ┌─────────────┐
+                                └───────────┘                    │  DBSQL or   │
+                                      │                          │ Sample Data │
+                                      ▼                          └─────────────┘
+                                ┌───────────┐
+                                │   SSE     │ ────▶ text deltas, tool calls, trace_id
+                                │  Stream   │
+                                └───────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                              FINANCE DATA FLOW                                       │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+
+Dashboard Request               Backend Processing                   Data Source
+     │                                │                                   │
+     ▼                                ▼                                   ▼
+┌─────────┐  GET /finance/     ┌───────────┐     DBSQL          ┌─────────────┐
+│Dashboard│ ───────────────▶   │  Finance  │ ────configured?───▶│     YES     │
+│  Page   │    summary         │  Router   │         │          │  Query SQL  │
+└─────────┘                    └───────────┘         │          │  Warehouse  │
+                                                     │          └─────────────┘
+                                                     │
+                                                     ▼
+                                              ┌─────────────┐
+                                              │     NO      │
+                                              │ Sample Data │
+                                              │ (In-Memory) │
+                                              └─────────────┘
+```
+
+### Agent Tool Calling
+
+The finance assistant has access to these tools:
+
+| Tool | Source | Description |
+|------|--------|-------------|
+| `get_user_profile` | Local | User demographics, income, risk tolerance |
+| `get_financial_summary` | Local | Net worth, assets, liabilities |
+| `get_transactions` | Local | Transaction history and cashflow |
+| `web_search` | MCP (you.com) | Real-time web search for market data |
+
+Tools are dynamically combined at runtime:
+```
+FMAPI Handler
+     │
+     ├── Local Finance Tools (FINANCE_TOOLS constant)
+     │   └── get_user_profile, get_financial_summary, get_transactions
+     │
+     └── MCP Tools (discovered at conversation start)
+         └── you.com web search, market data, etc.
+```
+
 ## Prerequisites
 
 - Python 3.11+
@@ -229,3 +404,12 @@ ruff check server/
 ### Modifying Sample Data
 
 Edit files in `server/data/` to change the sample financial data, or set up DBSQL tables with your own data.
+
+## Roadmap
+
+Planned features and integrations:
+
+- [ ] **Lakebase (PostgreSQL) Integration** - Persistent chat history and user profile storage using Databricks Lakebase. Infrastructure is in place (`server/db/`), pending full integration.
+- [ ] **Additional MCP Tools** - More external data sources (market data APIs, financial news, economic indicators)
+- [ ] **Multi-Agent Orchestration** - Specialized agents for different financial domains (tax planning, retirement, budgeting)
+- [ ] **Portfolio Analytics** - Advanced investment analysis with performance attribution and risk metrics
