@@ -25,24 +25,21 @@ A personal finance app built on the Databricks GenAI App Template. Track your as
 │                                      BACKEND                                            │
 │  ┌───────────────────────────────────────│───────────────────────────────────────────┐  │
 │  │                           FastAPI + Uvicorn                                       │  │
-│  │  ┌────────────────────────────────────┴────────────────────────────────────────┐  │  │
-│  │  │                              API Routers                                    │  │  │
-│  │  │     /api/invoke_endpoint  │  /api/finance/*  │  /api/profile  │  ...        │  │  │
-│  │  └───────────────┬───────────────────────┬────────────────────────────────────────┘  │
-│  │                  │                       │                                           │
-│  │  ┌───────┴───────┐             ┌───────┴───────┐                                  │  │
-│  │  │    Agent      │             │   Finance     │                                  │  │
-│  │  │   Handlers    │             │   Service     │                                  │  │
-│  │  │ ┌───────────┐ │             │               │                                  │  │
-│  │  │ │  FMAPI    │ │             │  DBSQL or     │                                  │  │
-│  │  │ │  Handler  │ │             │  Sample Data  │                                  │  │
-│  │  │ └─────┬─────┘ │             └───────┬───────┘                                  │  │
-│  │  │       │       │                     │                                          │  │
-│  │  │ ┌─────┴─────┐ │                     │                                          │  │
-│  │  │ │    MCP    │ │                     │                                          │  │
-│  │  │ │   Client  │ │                     │                                          │  │
-│  │  │ └───────────┘ │                     │                                          │  │
-│  │  └───────────────┘                     │                                          │  │
+│  │  ┌────────────────────────────────────┴───────────────────────────────────────┐   │  │
+│  │  │                              API Routers                                   │   │  │
+│  │  │  /api/invoke_endpoint  │  /api/finance/*  │  /api/profile  │  ...          │   │  │
+│  │  └──────────────┬─────────────────────┬───────────────────────────────────────┘   │  │
+│  │                 │                     │                                           │  │
+│  │  ┌──────────────┴──────┐   ┌──────────┴─────────┐                                 │  │
+│  │  │   Agent Handlers    │   │  Finance Service   │                                 │  │
+│  │  │  ┌───────────────┐  │   │                    │                                 │  │
+│  │  │  │ FMAPI Handler │  │   │  DBSQL or          │                                 │  │
+│  │  │  └──────┬────────┘  │   │  Sample Data       │                                 │  │
+│  │  │         │           │   └─────────┬──────────┘                                 │  │
+│  │  │  ┌──────┴────────┐  │             │                                            │  │
+│  │  │  │  MCP Client   │  │             │                                            │  │
+│  │  │  └───────────────┘  │             │                                            │  │
+│  │  └─────────────────────┘             │                                            │  │
 │  └───────────────────────────────────────────────────────────────────────────────────┘  │
 └─────────────┬─────────────────────┬─────────────────────────────────────────────────────┘
               │                     │
@@ -112,22 +109,22 @@ A personal finance app built on the Databricks GenAI App Template. Track your as
 │                              CHAT INTERACTION FLOW                                   │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 
-User Message                    Agent Processing                     Response Stream
-     │                                │                                    │
-     ▼                                ▼                                    ▼
-┌─────────┐    POST /invoke     ┌───────────┐    Tool Calls      ┌─────────────┐
-│  Chat   │ ─────────────────▶  │  FMAPI    │ ◀───────────────▶  │  Finance    │
-│  Input  │    endpoint         │  Handler  │                    │   Tools     │
-└─────────┘                     └─────┬─────┘                    └─────────────┘
-                                      │                                 │
-                                      │ MCP Call                        │ get_user_profile
-                                      ▼                                 │ get_financial_summary
-                                ┌───────────┐                           │ get_transactions
-                                │  you.com  │                           ▼
-                                │   Search  │                    ┌─────────────┐
-                                └───────────┘                    │  DBSQL or   │
-                                      │                          │ Sample Data │
-                                      ▼                          └─────────────┘
+User Message                    Agent Processing                       Response Stream
+     │                                │                                      │
+     ▼                                ▼                                      ▼
+┌─────────┐   POST /api/        ┌───────────┐      Tool Calls      ┌─────────────┐
+│  Chat   │ ───────────────▶    │  FMAPI    │ ◀─────────────────▶  │  Finance    │
+│  Input  │  invoke_endpoint    │  Handler  │                      │   Tools     │
+└─────────┘                     └─────┬─────┘                      └─────────────┘
+                                      │                                   │
+                                      │ MCP Call                          │ get_user_profile
+                                      ▼                                   │ get_financial_summary
+                                ┌───────────┐                             │ get_transactions
+                                │  you.com  │                             ▼
+                                │   Search  │                      ┌─────────────┐
+                                └───────────┘                      │  DBSQL or   │
+                                      │                            │ Sample Data │
+                                      ▼                            └─────────────┘
                                 ┌───────────┐
                                 │   SSE     │ ────▶ text deltas, tool calls, trace_id
                                 │  Stream   │
@@ -138,21 +135,21 @@ User Message                    Agent Processing                     Response St
 │                              FINANCE DATA FLOW                                       │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 
-Dashboard Request               Backend Processing                   Data Source
-     │                                │                                   │
-     ▼                                ▼                                   ▼
-┌─────────┐  GET /finance/     ┌───────────┐     DBSQL          ┌─────────────┐
-│Dashboard│ ───────────────▶   │  Finance  │ ────configured?───▶│     YES     │
-│  Page   │    summary         │  Router   │         │          │  Query SQL  │
-└─────────┘                    └───────────┘         │          │  Warehouse  │
-                                                     │          └─────────────┘
-                                                     │
-                                                     ▼
-                                              ┌─────────────┐
-                                              │     NO      │
-                                              │ Sample Data │
-                                              │ (In-Memory) │
-                                              └─────────────┘
+Dashboard Request                Backend Processing                    Data Source
+     │                                 │                                     │
+     ▼                                 ▼                                     ▼
+┌─────────┐  GET /api/finance   ┌───────────┐      DBSQL          ┌─────────────┐
+│Dashboard│ ────────────────▶   │  Finance  │ ────configured?────▶│     YES     │
+│  Page   │     /summary        │  Router   │         │           │  Query SQL  │
+└─────────┘                     └───────────┘         │           │  Warehouse  │
+                                                      │           └─────────────┘
+                                                      │
+                                                      ▼
+                                               ┌─────────────┐
+                                               │     NO      │
+                                               │ Sample Data │
+                                               │ (In-Memory) │
+                                               └─────────────┘
 ```
 
 ### Agent Tool Calling
@@ -316,15 +313,22 @@ In production (Databricks Apps), authentication uses the `x-forwarded-user` head
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-| ---------- | -------- | ------------- |
-| `/api/finance/summary` | GET | Returns financial summary with assets, liabilities, and net worth |
-| `/api/finance/assets` | POST | Add a new asset |
-| `/api/finance/liabilities` | POST | Add a new liability |
-| `/api/finance/transactions` | GET | Returns transaction data with daily cashflow |
-| `/api/finance/investments` | GET | Returns investment holdings and portfolio history |
-| `/api/profile` | GET/PUT/PATCH/DELETE | User profile management |
-| `/api/health` | GET | Health check |
+| Endpoint                     | Method              | Description                                                  |
+|------------------------------|---------------------|--------------------------------------------------------------|
+| `/api/invoke_endpoint`       | POST                | Agent invocation with SSE streaming and tool calling         |
+| `/api/finance/summary`       | GET                 | Returns financial summary with assets, liabilities, net worth|
+| `/api/finance/assets`        | POST                | Add a new asset                                              |
+| `/api/finance/liabilities`   | POST                | Add a new liability                                          |
+| `/api/finance/transactions`  | GET                 | Returns transaction data with daily cashflow                 |
+| `/api/finance/investments`   | GET                 | Returns investment holdings and portfolio history            |
+| `/api/profile`               | GET/PUT/PATCH/DELETE| User profile management                                      |
+| `/api/chats`                 | GET/DELETE          | List or delete all chat sessions                             |
+| `/api/chats/{chat_id}`       | GET/PATCH/DELETE    | Get, update, or delete a specific chat session               |
+| `/api/config/agents`         | GET                 | Get available agent configurations                           |
+| `/api/config/personas`       | GET                 | Get available investment advisor personas                    |
+| `/api/config/app`            | GET                 | Get full app configuration                                   |
+| `/api/news`                  | GET                 | Fetch latest financial news from major outlets               |
+| `/api/health`                | GET                 | Health check                                                 |
 
 ### Example Response
 
