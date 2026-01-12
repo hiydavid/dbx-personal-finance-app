@@ -23,10 +23,9 @@ env:
     value: "fe-vm-industry-solutions-buildathon.cloud.databricks.com"
   - name: DATABRICKS_HTTP_PATH
     value: "/sql/1.0/warehouses/your_warehouse_id"  # TODO: Replace with your warehouse path
-  # For DBSQL auth - in Databricks Apps, the service principal token is auto-injected
-  # If not working, you can set a PAT here (not recommended for production)
-  - name: DATABRICKS_TOKEN
-    value: "your_databricks_token"
+  # For DBSQL auth - in Databricks Apps, the service principal credentials are auto-injected
+  # (DATABRICKS_CLIENT_ID and DATABRICKS_CLIENT_SECRET)
+  # Do NOT set DATABRICKS_TOKEN here - it will conflict with service principal auth
   # News API for financial news feed (get key from https://newsapi.org)
   - name: NEWSAPI_KEY
     value: "your_newsapi_key"  # TODO: Replace with your API key
@@ -35,6 +34,10 @@ env:
     value: "/Users/your.email@company.com/personal-finance-app"  # TODO: Replace with your experiment path
   # - name: MLFLOW_EXPERIMENT_ID
   #   value: "123456789"  # Alternative: use numeric ID if experiment already exists
+  # MCP connections for external tools (optional - overrides config/app.json)
+  # Comma-separated list of MCP connection names configured in Databricks
+  - name: MCP_CONNECTIONS
+    value: "your-search-mcp"  # TODO: Replace with your MCP connection name
   # Lakebase instance name - set this to your instance name for OAuth token generation
   # The database resource provides PGHOST, PGUSER, PGDATABASE, PGPORT, PGSSLMODE
   # - name: LAKEBASE_INSTANCE_NAME

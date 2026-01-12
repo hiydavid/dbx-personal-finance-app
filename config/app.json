@@ -4,8 +4,9 @@
       "id": "finance-assistant",
       "endpoint_name": "databricks-claude-sonnet-4",
       "display_name": "Finance Assistant",
-      "display_description": "Personal finance advisor with access to your financial data",
-      "deployment_type": "fmapi"
+      "display_description": "Personal finance advisor with access to your financial data and web search",
+      "deployment_type": "fmapi",
+      "mcp_connections": []
     }
   ],
   "personas": [
