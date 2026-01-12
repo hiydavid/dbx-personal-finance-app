@@ -6,7 +6,7 @@
       "display_name": "Finance Assistant",
       "display_description": "Personal finance advisor with access to your financial data and web search",
       "deployment_type": "fmapi",
-      "mcp_connections": ["you-com-search"]
+      "mcp_connections": []
     }
   ],
   "personas": [

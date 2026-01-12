@@ -121,6 +121,23 @@ class FMAPIHandler(BaseDeploymentHandler):
     databricks_host = os.environ.get('DATABRICKS_HOST', '').rstrip('/')
     databricks_token = os.environ.get('DATABRICKS_TOKEN', '')
 
+    if not databricks_token:
+      # Get OAuth token from Databricks SDK (for service principal auth)
+      try:
+        from databricks.sdk import WorkspaceClient
+
+        w = WorkspaceClient()
+        # Get OAuth token from the SDK's auth headers
+        headers = w.config.authenticate()
+        auth_header = headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+          databricks_token = auth_header[7:]  # Remove 'Bearer ' prefix
+          logger.info('Using OAuth token from Databricks SDK for FMAPI')
+        else:
+          logger.warning('Could not extract Bearer token from SDK auth headers')
+      except Exception as e:
+        logger.error(f'Failed to get OAuth token from Databricks SDK: {e}')
+
     self.client = OpenAI(
       base_url=f'{databricks_host}/serving-endpoints',
       api_key=databricks_token,

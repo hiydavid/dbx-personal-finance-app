@@ -14,26 +14,44 @@ from databricks.sdk import WorkspaceClient
 logger = logging.getLogger(__name__)
 
 
-def convert_mcp_tool_to_openai_format(mcp_tool: Dict[str, Any]) -> Dict[str, Any]:
+def convert_mcp_tool_to_openai_format(mcp_tool: Any) -> Dict[str, Any]:
   """Convert an MCP tool definition to OpenAI function format.
 
   Args:
-      mcp_tool: Tool definition from MCP list_tools()
+      mcp_tool: Tool object from MCP list_tools() (databricks_mcp.Tool)
 
   Returns:
       Tool definition in OpenAI function calling format
   """
-  input_schema = mcp_tool.get('inputSchema', {})
+  # Handle both dict and Tool object from databricks_mcp
+  if hasattr(mcp_tool, 'inputSchema'):
+    input_schema = mcp_tool.inputSchema or {}
+    name = mcp_tool.name or ''
+    description = mcp_tool.description or ''
+  else:
+    input_schema = mcp_tool.get('inputSchema', {})
+    name = mcp_tool.get('name', '')
+    description = mcp_tool.get('description', '')
+
+  # input_schema may also be an object
+  if hasattr(input_schema, '__dict__'):
+    schema_type = getattr(input_schema, 'type', 'object')
+    schema_props = getattr(input_schema, 'properties', {})
+    schema_required = getattr(input_schema, 'required', [])
+  else:
+    schema_type = input_schema.get('type', 'object') if input_schema else 'object'
+    schema_props = input_schema.get('properties', {}) if input_schema else {}
+    schema_required = input_schema.get('required', []) if input_schema else []
 
   return {
     'type': 'function',
     'function': {
-      'name': mcp_tool.get('name', ''),
-      'description': mcp_tool.get('description', ''),
+      'name': name,
+      'description': description,
       'parameters': {
-        'type': input_schema.get('type', 'object'),
-        'properties': input_schema.get('properties', {}),
-        'required': input_schema.get('required', []),
+        'type': schema_type,
+        'properties': schema_props,
+        'required': schema_required,
       },
     },
   }

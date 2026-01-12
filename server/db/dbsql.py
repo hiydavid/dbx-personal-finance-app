@@ -75,8 +75,8 @@ def get_schema() -> str:
 def get_connection():
   """Get or create a Databricks SQL connection.
 
-  Uses DATABRICKS_TOKEN if set, otherwise falls back to Databricks SDK default auth
-  (which works automatically in Databricks Apps with service principal).
+  Uses DATABRICKS_TOKEN if set, otherwise falls back to Databricks SDK credentials
+  provider (which works automatically in Databricks Apps with service principal).
 
   Returns:
       databricks.sql connection object
@@ -98,31 +98,46 @@ def get_connection():
   if not http_path:
     raise ValueError('DATABRICKS_HTTP_PATH environment variable is not set')
 
-  if not access_token:
-    # Get token from Databricks SDK (works in Databricks Apps with service principal)
+  if access_token:
+    # Use PAT directly if provided
+    logger.info('Using DATABRICKS_TOKEN for DBSQL authentication')
+    _connection = dbsql.connect(
+      server_hostname=server_hostname,
+      http_path=http_path,
+      access_token=access_token,
+    )
+  else:
+    # Use Databricks SDK credentials provider for OAuth/service principal
     try:
-      from databricks.sdk import WorkspaceClient
+      from databricks.sdk.core import Config, oauth_service_principal
 
       # Log available env vars for debugging (redacted)
       logger.info(f'DATABRICKS_HOST set: {bool(os.environ.get("DATABRICKS_HOST"))}')
       logger.info(f'DATABRICKS_CLIENT_ID set: {bool(os.environ.get("DATABRICKS_CLIENT_ID"))}')
       logger.info(f'DATABRICKS_CLIENT_SECRET set: {bool(os.environ.get("DATABRICKS_CLIENT_SECRET"))}')
 
-      w = WorkspaceClient()
-      access_token = w.config.token
-      logger.info('Using Databricks SDK for authentication')
+      # Create credentials provider for OAuth service principal
+      # See: https://docs.databricks.com/aws/en/dev-tools/auth/oauth-m2m
+      def credential_provider():
+        config = Config(
+          host=f'https://{server_hostname}',
+          client_id=os.environ.get('DATABRICKS_CLIENT_ID'),
+          client_secret=os.environ.get('DATABRICKS_CLIENT_SECRET'),
+        )
+        return oauth_service_principal(config)
+
+      logger.info('Using OAuth service principal for DBSQL authentication')
+      _connection = dbsql.connect(
+        server_hostname=server_hostname,
+        http_path=http_path,
+        credentials_provider=credential_provider,
+      )
     except Exception as e:
-      logger.error(f'Failed to get token from Databricks SDK: {e}')
+      logger.error(f'Failed to authenticate via Databricks SDK: {e}')
       raise ValueError(
         'DATABRICKS_TOKEN not set and could not authenticate via Databricks SDK. '
-        'Ensure DATABRICKS_HOST is set and service principal is configured.'
+        f'Ensure DATABRICKS_HOST is set and service principal is configured. Error: {e}'
       )
-
-  _connection = dbsql.connect(
-    server_hostname=server_hostname,
-    http_path=http_path,
-    access_token=access_token,
-  )
 
   return _connection
 
