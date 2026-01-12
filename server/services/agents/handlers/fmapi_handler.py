@@ -11,13 +11,13 @@ import mlflow
 from mlflow.entities import SpanType
 from openai import OpenAI
 
-from .base import BaseDeploymentHandler
 from server.services.mcp_client import (
-  MCPClientService,
   convert_mcp_tool_to_openai_format,
   get_mcp_connections_from_config,
   get_mcp_service,
 )
+
+from .base import BaseDeploymentHandler
 
 logger = logging.getLogger(__name__)
 
@@ -305,6 +305,9 @@ class FMAPIHandler(BaseDeploymentHandler):
         '- get_transactions: Get recent transaction history and cashflow patterns'
         + self._get_mcp_tools_description()
       )
+
+    # Add current date context
+    base_prompt += f'\n\nCurrent date: {date.today().strftime("%A, %B %d, %Y")}'
 
     if profile_data:
       context_parts = ['\n\nUser Context (for personalization):']
